@@ -1,11 +1,14 @@
 ---
 title: "Heat resistance test"
 output: html_notebook
+editor_options: 
+  chunk_output_type: inline
 ---
 
 
 ```{r setup, message=FALSE}
 library(tidyverse, quietly = T)
+library(broom)
 library(cowplot, quietly = T)
 library(here)
 # set_here("../")
@@ -13,23 +16,54 @@ library(here)
 ```
 
 
-```{r read in data}
+```{r read in data, message=FALSE, echo=FALSE}
 d <- read_csv(here("data","ssp_data.csv"))
 
 ```
 
-```{r plot SPO1, message=FALSE}
+# Preliminary assay data  
 
+```{r prelim plot, echo=FALSE}
 d%>%
-  filter(phage=="SPO1"|phage=="noPhage")%>%
-  filter(grepl("group", group))%>%
+  mutate(phage=fct_relevel(phage,c("noPhage","Goe2", "SPO1")))%>%
+  mutate(host=fct_rev(host))%>%
+  filter(host=="wt"|host=="dsspAB")%>%
   filter(!filter)%>%
+  filter(group=="preliminary")%>%
   #there are 4 rows with data marked as "TMC" (=Too Many to Count) 
   # these are coerced into NA
   mutate(counts=as.numeric(counts ))%>%
   mutate(no.ml = counts/(dilution*ml.plated))%>%
-  group_by(phage,assay)%>%
-  ggplot(aes(x=heat.min, y=no.ml))+
+  group_by(host,phage,assay, date)%>%
+  mutate(perc = no.ml/no.ml[heat.min==0])%>%
+  ggplot(aes(x=heat.min, y=perc))+
+    geom_line(aes(group=interaction(date,assay),color=phage, linetype=assay))+
+    geom_point(aes(group=interaction(date,assay),color=phage, shape=assay), size=2, fill="white")+
+  scale_y_log10()+
+  scale_shape_manual(values = c(21,24))+
+    facet_wrap(assay~host)+
+  theme_cowplot()+
+  panel_border()+
+  ylab("viable spore fraction (log)")
+```
+
+
+# Replicated assay data  
+
+```{r replicated plot, echo=FALSE}
+d%>%
+  mutate(phage=fct_relevel(phage,c("noPhage","Goe2", "SPO1")))%>%
+  mutate(host=fct_rev(host))%>%
+  filter(host=="wt"|host=="dsspAB")%>%
+  filter(!filter)%>%
+  filter(group!="preliminary")%>%
+  #there are 4 rows with data marked as "TMC" (=Too Many to Count) 
+  # these are coerced into NA
+  mutate(counts=as.numeric(counts ))%>%
+  mutate(no.ml = counts/(dilution*ml.plated))%>%
+  group_by(host,phage,assay, group)%>%
+  mutate(perc = no.ml/no.ml[heat.min==0])%>%
+  ggplot(aes(x=heat.min, y=perc))+
     geom_line(aes(color=phage, linetype=assay))+
     geom_point(aes(color=phage, shape=assay), size=2, fill="white")+
   scale_y_log10()+
@@ -37,29 +71,97 @@ d%>%
     facet_grid(group~host)+
   theme_cowplot()+
   panel_border()+
-  ggtitle("SPO1")
-
+  ylab("viable spore fraction (log)")
 ```
 
-```{r plot Goe2, message=FALSE}
+# calculate slopes by linear model
 
+```{r slopes, message=FALSE, echo=FALSE}
+d.lm <- 
 d%>%
-  filter(phage=="Goe2"|phage=="noPhage")%>%
-  filter(grepl("group", group))%>%
+  mutate(phage=fct_relevel(phage,c("noPhage","Goe2", "SPO1")))%>%
+  mutate(host=fct_rev(host))%>%
+  filter(host=="wt"|host=="dsspAB")%>%
   filter(!filter)%>%
+  filter(group!="preliminary")%>%
   #there are 4 rows with data marked as "TMC" (=Too Many to Count) 
   # these are coerced into NA
   mutate(counts=as.numeric(counts ))%>%
   mutate(no.ml = counts/(dilution*ml.plated))%>%
-  group_by(phage,assay)%>%
-    ggplot(aes(x=heat.min, y=no.ml))+
-    geom_line(aes(color=phage, linetype=assay))+
+  group_by(host,phage,assay, group)%>%
+  mutate(perc = no.ml/no.ml[heat.min==0]) %>%
+   do(tidy(lm(perc~heat.min,.)))
+  
+  d.lm.estimates <- 
+    d.lm%>%
+    select(host,phage,assay,group,term,estimate)%>%
+    pivot_wider(names_from = term, values_from = estimate)%>%
+    rename(slope=heat.min, intercept=`(Intercept)`)
+  
+  
+  d.slopes <- 
+    filter(d.lm,term=="heat.min")
+
+  d.lm
+```
+
+# plot estimated slopes  
+Verifying that predicted linear models are in agreement with measured points.  
+
+```{r plot slopes, echo=FALSE}
+d%>%
+  mutate(phage=fct_relevel(phage,c("noPhage","Goe2", "SPO1")))%>%
+  mutate(host=fct_rev(host))%>%
+  filter(host=="wt"|host=="dsspAB")%>%
+  filter(!filter)%>%
+  filter(group!="preliminary")%>%
+  #there are 4 rows with data marked as "TMC" (=Too Many to Count) 
+  # these are coerced into NA
+  mutate(counts=as.numeric(counts ))%>%
+  mutate(no.ml = counts/(dilution*ml.plated))%>%
+  group_by(host,phage,assay, group)%>%
+  mutate(perc = no.ml/no.ml[heat.min==0])%>%
+  ggplot(aes(x=heat.min, y=perc))+
+    geom_abline(data=d.lm.estimates,
+                aes(slope=slope, intercept=intercept,
+                    color=phage, linetype=assay))+
     geom_point(aes(color=phage, shape=assay), size=2, fill="white")+
-  scale_y_log10()+
+  # scale_y_log10()+
   scale_shape_manual(values = c(21,24))+
-    facet_grid(group~host)+
+    facet_grid(assay+group~host+phage)+
   theme_cowplot()+
   panel_border()+
-  ggtitle("Goe2")
-
+  ylab("viable spore fraction")
 ```
+
+
+```{r compare slopes, message=FALSE, echo=FALSE}
+
+sum.slopes <- 
+d.slopes%>%
+  group_by(host, phage,assay)%>%
+  summarise(slope=mean(estimate), ymin=slope-sd(estimate), ymax=slope+sd(estimate))%>%
+  rename(estimate=slope)
+
+d.slopes%>%
+  ggplot(aes(x=phage, y=estimate))+
+  geom_crossbar(data=sum.slopes, aes(ymin=ymin, ymax=ymax, color=assay), fill="grey80", position = position_dodge(width=.8), width=.5)+
+  geom_point(aes(fill=assay, shape=assay),size=3, alpha=0.5,
+             position = position_jitterdodge(jitter.width = 0.1,
+                                            jitter.height = 0))+
+  scale_shape_manual(values = c(21,23))+
+  theme_cowplot()+
+  panel_border()+
+  facet_wrap(~host,nrow = 1)+
+  ylab("decay slope")+
+  ggtitle("Spore heat decay","box is mean±SD")
+  
+```
+
+
+
+```{r ANOVA slopes, message=FALSE, echo=TRUE}
+  aov(estimate~host+phage+assay+group, d.slopes)%>%
+  summary(.)
+```
+
