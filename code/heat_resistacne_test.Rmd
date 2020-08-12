@@ -21,7 +21,9 @@ d <- read_csv(here("data","ssp_data.csv"))
 
 ```
 
-```{r prelim plot}
+# Preliminary assay data  
+
+```{r prelim plot, echo=FALSE}
 d%>%
   mutate(phage=fct_relevel(phage,c("noPhage","Goe2", "SPO1")))%>%
   mutate(host=fct_rev(host))%>%
@@ -41,10 +43,14 @@ d%>%
   scale_shape_manual(values = c(21,24))+
     facet_wrap(assay~host)+
   theme_cowplot()+
-  panel_border()
+  panel_border()+
+  ylab("viable spore fraction (log)")
 ```
 
-```{r replicated plot}
+
+# Replicated assay data  
+
+```{r replicated plot, echo=FALSE}
 d%>%
   mutate(phage=fct_relevel(phage,c("noPhage","Goe2", "SPO1")))%>%
   mutate(host=fct_rev(host))%>%
@@ -64,12 +70,13 @@ d%>%
   scale_shape_manual(values = c(21,24))+
     facet_grid(group~host)+
   theme_cowplot()+
-  panel_border()
+  panel_border()+
+  ylab("viable spore fraction (log)")
 ```
 
-# calculate slopes
+# calculate slopes by linear model
 
-```{r slopes, message=FALSE}
+```{r slopes, message=FALSE, echo=FALSE}
 d.lm <- 
 d%>%
   mutate(phage=fct_relevel(phage,c("noPhage","Goe2", "SPO1")))%>%
@@ -94,10 +101,14 @@ d%>%
   
   d.slopes <- 
     filter(d.lm,term=="heat.min")
+
+  d.lm
 ```
 
-#plot estimated slopes
-```{r}
+# plot estimated slopes  
+Verifying that predicted linear models are in agreement with measured points.  
+
+```{r plot slopes, echo=FALSE}
 d%>%
   mutate(phage=fct_relevel(phage,c("noPhage","Goe2", "SPO1")))%>%
   mutate(host=fct_rev(host))%>%
@@ -117,13 +128,14 @@ d%>%
     geom_point(aes(color=phage, shape=assay), size=2, fill="white")+
   # scale_y_log10()+
   scale_shape_manual(values = c(21,24))+
-    facet_grid(group+assay~host+phage)+
+    facet_grid(assay+group~host+phage)+
   theme_cowplot()+
-  panel_border()
+  panel_border()+
+  ylab("viable spore fraction")
 ```
 
 
-```{r plot slopes, message=FALSE}
+```{r compare slopes, message=FALSE, echo=FALSE}
 
 sum.slopes <- 
 d.slopes%>%
@@ -133,7 +145,7 @@ d.slopes%>%
 
 d.slopes%>%
   ggplot(aes(x=phage, y=estimate))+
-  geom_crossbar(data=sum.slopes, aes(ymin=ymin, ymax=ymax, color=assay), fill="grey80", position = position_dodge())+
+  geom_crossbar(data=sum.slopes, aes(ymin=ymin, ymax=ymax, color=assay), fill="grey80", position = position_dodge(width=.8), width=.5)+
   geom_point(aes(fill=assay, shape=assay),size=3, alpha=0.5,
              position = position_jitterdodge(jitter.width = 0.1,
                                             jitter.height = 0))+
@@ -142,13 +154,14 @@ d.slopes%>%
   panel_border()+
   facet_wrap(~host,nrow = 1)+
   ylab("decay slope")+
-  ggtitle("box is mean±SD")
-  # scale_y_log10() 
+  ggtitle("Spore heat decay","box is mean±SD")
+  
 ```
 
 
 
-```{r ANOVA slopes, message=FALSE}
+```{r ANOVA slopes, message=FALSE, echo=TRUE}
   aov(estimate~host+phage+assay+group, d.slopes)%>%
   summary(.)
 ```
+
