@@ -70,7 +70,7 @@ d%>%
 # calculate slopes
 
 ```{r slopes, message=FALSE}
-d.slopes <- 
+d.lm <- 
 d%>%
   mutate(phage=fct_relevel(phage,c("noPhage","Goe2", "SPO1")))%>%
   mutate(host=fct_rev(host))%>%
@@ -83,15 +83,43 @@ d%>%
   mutate(no.ml = counts/(dilution*ml.plated))%>%
   group_by(host,phage,assay, group)%>%
   mutate(perc = no.ml/no.ml[heat.min==0]) %>%
-   do(tidy(lm(perc~heat.min,.)))%>%
-  filter(term=="heat.min")
-
-  d.slopes
+   do(tidy(lm(perc~heat.min,.)))
+  
+  d.lm.estimates <- 
+    d.lm%>%
+    select(host,phage,assay,group,term,estimate)%>%
+    pivot_wider(names_from = term, values_from = estimate)%>%
+    rename(slope=heat.min, intercept=`(Intercept)`)
+  
+  
+  d.slopes <- 
+    filter(d.lm,term=="heat.min")
 ```
 
 #plot estimated slopes
 ```{r}
-
+d%>%
+  mutate(phage=fct_relevel(phage,c("noPhage","Goe2", "SPO1")))%>%
+  mutate(host=fct_rev(host))%>%
+  filter(host=="wt"|host=="dsspAB")%>%
+  filter(!filter)%>%
+  filter(group!="preliminary")%>%
+  #there are 4 rows with data marked as "TMC" (=Too Many to Count) 
+  # these are coerced into NA
+  mutate(counts=as.numeric(counts ))%>%
+  mutate(no.ml = counts/(dilution*ml.plated))%>%
+  group_by(host,phage,assay, group)%>%
+  mutate(perc = no.ml/no.ml[heat.min==0])%>%
+  ggplot(aes(x=heat.min, y=perc))+
+    geom_abline(data=d.lm.estimates,
+                aes(slope=slope, intercept=intercept,
+                    color=phage, linetype=assay))+
+    geom_point(aes(color=phage, shape=assay), size=2, fill="white")+
+  # scale_y_log10()+
+  scale_shape_manual(values = c(21,24))+
+    facet_grid(group+assay~host+phage)+
+  theme_cowplot()+
+  panel_border()
 ```
 
 
