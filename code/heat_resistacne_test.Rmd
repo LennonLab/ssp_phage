@@ -4,7 +4,7 @@ output: html_notebook
 editor_options: 
   chunk_output_type: inline
 ---
-Chian Jung Chen, Daniel Schwartz and Jay Lennon
+*Chian Jung Chen, Daniel Schwartz and Jay Lennon*
 
 In the host-phage interaction, when infecting cells undergoing sporulation, phage genomes can get entrapped in dormant cells (i.e., viral spores) and start infection upon spore germination.
 Past research found that some homologs of bacteria sporulation genes were carried by phages. However, the reason why phages carry these genes is still unknown. One of these homologs is the *ssp* gene, which encodes for small acid-soluble spore proteins (SASP). SASPs are double-stranded DNA-binding proteins that change the conformation of DNA, protecting the spore from heat, UV radiation, and enzymic degradation.  
@@ -15,7 +15,7 @@ In Bacillus subtilis there are 16 *ssp* paralogs (*sspA*...*sspP*), however spor
 
 ![phylogeny](../figures/SSP_phylo_tree.png)  
    
-AA alignment phylogeny by phylogeny.fr
+**AA alignment phylogeny by phylogeny.fr**
 
 A double knockout B. subtilis strain $\Delta sspAB$ sporulates like the Wild-type (WT), but the spores made have reduced heat resistance (Mason and Setlow 1986 JBac 167:174). 
 
@@ -29,13 +29,15 @@ library(broom)
 library(cowplot, quietly = T)
 library(here)
 library(ggrepel)
+library(scales)
 # set_here("../")
 
 ```
 
 
 ```{r read in data, message=FALSE, echo=FALSE}
-d <- read_csv(here("data","ssp_data.csv"))
+d <- read_csv(here("data","ssp_data.csv"))%>%
+  mutate(group=str_replace(group, "group.","g"))
 ```
 
 ## Preliminary test of spore heat-resistance
@@ -100,8 +102,43 @@ d%>%
 
 In this preliminary experiment we observed that infection by Goe2 phage partially restored the spore resistance of the $\Delta sspAB$ for bith types of spores, Infection by SPO1 completly restored spore resistance of coloby forming spores but not of viral spores. Encouraged, though slightly confused by these data (how could viruses affect non-viral spores?) we next proceeded to conduct a simmilar experiment with replication.
 
-# Replicated spore resistance assay  
+## Replicated spore resistance assay  
+In this experiment both the WT and $\Delta sspAB$ strains were induced to sporulate in DSM. At the onset of sporulation each of the cultures were infected (MOI=3) with either phage SPO1, phage Goe2 , or with no phage as a control. after 2 days spores were purified and subjected to heat resistance test where both CFU and PFU were measured, folowing regular and viral spores, respectively.  
+The experimet had replication of n=3. where the sporulation and infection assays were all done together. Purified spores were then stored in the fridge. The heat resistance tests were then conducted in 3 groups, on seperate days, each consisting of all treatments at n=1. Samples were plated before heat treatment (t=0) and after 15,30 and 45 min of heat treatment.    
+To make sure we were looking at heat response of ciral spores, and not free viruses, samples of the purified spores were filtered and plaque assayed to measure the levels of free phages (spores exclude by filter while free phages pass theough).
 
+```{r filter plot, echo=FALSE}
+d%>%
+  mutate(phage=fct_relevel(phage,c("noPhage","Goe2", "SPO1")))%>%
+  mutate(host=fct_rev(host))%>%
+  filter(host=="wt"|host=="dsspAB")%>%
+  filter(group!="preliminary")%>%
+  filter(heat.min==0)%>%
+  filter(assay=="PFU")%>%
+  #there are 4 rows with data marked as "TMC" (=Too Many to Count) 
+  # these are coerced into NA
+  mutate(counts=as.numeric(counts))%>%
+  mutate(no.ml = counts/(dilution*ml.plated))%>%
+  pivot_wider(id_cols = c("host","phage","group"), names_from="filter", values_from="no.ml")%>%
+  rename(free.phage=`TRUE`, total=`FALSE`)%>%
+    mutate(perc.free=percent(free.phage/total))%>%
+  ggplot(aes(x=group))+
+  geom_point(data = .%>%pivot_longer(c("total", "free.phage"),names_to="pop" , values_to="PFU.ml"), aes(y=PFU.ml, color=pop, shape=pop),size=2)+
+  geom_text(aes(label=perc.free, y=free.phage/4))+
+  scale_y_log10()+
+  facet_grid(phage~host)+
+  theme_cowplot()+
+  scale_shape_manual(values = c(21,24))+
+  panel_border()+
+  ylab("PFU/ml")+
+  ggtitle("PFU source of untreated samples (t=0)")
+```
+
+In all cases measured the free phages were only a small fraction of the total PFU, being 1.1% or lower. Therfore, we can attribute any PFU decline observed in heat treatment to the change in spore viability. For 3 samples (all in group.1) the filtered sample plating was not sufficiently diluted for enumaration.
+
+
+
+Next we present the change in titer during heat treatment, normalized to t=0.  
 ```{r replicated plot, echo=FALSE}
 d%>%
   mutate(phage=fct_relevel(phage,c("noPhage","Goe2", "SPO1")))%>%
@@ -116,15 +153,22 @@ d%>%
   group_by(host,phage,assay, group)%>%
   mutate(perc = no.ml/no.ml[heat.min==0])%>%
   ggplot(aes(x=heat.min, y=perc))+
-    geom_line(aes(color=phage, linetype=assay),size=1)+
-    geom_point(aes(color=phage, shape=assay), size=2.5, fill="white")+
+    geom_line(aes(color=assay, linetype=group),size=1)+
+    geom_point(aes(color=assay, shape=group), size=1.5, fill="white")+
   scale_y_log10()+
-  scale_shape_manual(values = c(21,24))+
-    facet_grid(group~host)+
+  scale_shape_manual(values = c(21,23,24))+
+    facet_grid(host~phage)+
   theme_cowplot()+
   panel_border()+
   ylab("viable spore fraction (log)")
 ```
+
+Once again we see that, in the absence of phage, WT spore titer barely changes by heat treatment while the $\Delta sspAB$ strain titer drops by nearly 2 orfers of magnitude. In most cases it is not obvious if the infection with phage alters that response. However spores produced in WT cultures infeted with Goe2 appear less resistant in 2 of 3 replication groups, seen both in CFU and PFU (upper middle panel).
+
+
+
+
+
 
 # calculate slopes by linear model
 
@@ -216,4 +260,100 @@ d.slopes%>%
   aov(estimate~host+phage+assay+group, d.slopes)%>%
   summary(.)
 ```
+
+
+# viral spore prevalence  
+While not the main hypothesis here we could also ask whther the *ssp* gene of phages and hosts affect the prospects of entrapment. We can adress this by looking at the level of entrapment.
+```{r viral spore plot, echo=FALSE}
+d%>%
+  mutate(phage=fct_relevel(phage,c("noPhage","Goe2", "SPO1")))%>%
+  mutate(host=fct_rev(host))%>%
+  filter(host=="wt"|host=="dsspAB")%>%
+  filter(group!="preliminary")%>%
+  filter(!filter)%>%
+  filter(heat.min==0)%>%
+  #there are 4 rows with data marked as "TMC" (=Too Many to Count) 
+  # these are coerced into NA
+  mutate(counts=as.numeric(counts))%>%
+  mutate(no.ml = counts/(dilution*ml.plated))%>%
+  pivot_wider(id_cols = c("host","phage","group"), names_from="assay", values_from="no.ml")%>%
+  rename(viral.spore=PFU, host.spore=CFU)%>%
+  mutate(total=viral.spore+host.spore)%>%
+    mutate(perc.viral=percent(viral.spore/total))%>%
+  mutate(total=ifelse(is.na(total),host.spore,total ))%>%
+  ggplot(aes(x=group))+
+  geom_point(data = .%>%pivot_longer(c("viral.spore", "host.spore", "total"),names_to="pop" , values_to="no.ml"), aes(y=no.ml, color=pop, shape=pop),size=3, fill="grey",alpha=0.5, stroke=2)+
+  geom_text(aes(label=perc.viral), y=9.5)+
+  scale_y_log10(limits=c(1e7,5e9))+
+  facet_grid(host~phage)+
+  scale_shape_manual(values = c(21,3,23))+
+  theme_cowplot()+
+  panel_border()+
+  ylab("PFU/ml")+
+  ggtitle("Spore Titers and %viral spores")
+
+```
+
+A couple of things to notice:  
+1. Total spore titer of infected cultures seems higher when infecting $\Delta sspAB$ host (green + signs).  
+2. In all cases entrampment (% viral spores) is higher when infecting $\Delta sspAB$ host.
+
+
+```{r ciral spore plot, echo=FALSE}
+d%>%
+  mutate(phage=fct_relevel(phage,c("noPhage","Goe2", "SPO1")))%>%
+  mutate(host=fct_rev(host))%>%
+  filter(host=="wt"|host=="dsspAB")%>%
+  filter(group!="preliminary")%>%
+  filter(!filter)%>%
+  filter(heat.min==0)%>%
+  #there are 4 rows with data marked as "TMC" (=Too Many to Count) 
+  # these are coerced into NA
+  mutate(counts=as.numeric(counts))%>%
+  mutate(no.ml = counts/(dilution*ml.plated))%>%
+  pivot_wider(id_cols = c("host","phage","group"), names_from="assay", values_from="no.ml")%>%
+  rename(viral.spore=PFU, host.spore=CFU)%>%
+  mutate(total=viral.spore+host.spore)%>%
+    mutate(perc.viral=percent(viral.spore/total))%>%
+  mutate(total=ifelse(is.na(total),host.spore,total ))%>%
+  ggplot(aes(x=group, y=total))+
+  geom_point(aes(color=phage, shape=phage),size=3, fill="grey",alpha=0.5, stroke=2)+
+  # geom_text(aes(label=perc.viral), y=9.5)+
+  scale_y_log10(limits=c(1e8,3e9))+
+  facet_grid(.~host)+
+  scale_shape_manual(values = c(21,23,24))+
+  theme_cowplot()+
+  panel_border()+
+  ylab("PFU/ml")+
+  ggtitle("Total Spore Titers (CFU+PFU)")
+
+```
+
+```{r percent viral spore plot, echo=FALSE}
+d%>%
+  mutate(phage=fct_relevel(phage,c("noPhage","Goe2", "SPO1")))%>%
+  mutate(host=fct_rev(host))%>%
+  filter(host=="wt"|host=="dsspAB")%>%
+  filter(group!="preliminary")%>%
+  filter(!filter)%>%
+  filter(heat.min==0)%>%
+  #there are 4 rows with data marked as "TMC" (=Too Many to Count) 
+  # these are coerced into NA
+  mutate(counts=as.numeric(counts))%>%
+  mutate(no.ml = counts/(dilution*ml.plated))%>%
+  pivot_wider(id_cols = c("host","phage","group"), names_from="assay", values_from="no.ml")%>%
+  rename(viral.spore=PFU, host.spore=CFU)%>%
+  mutate(total=viral.spore+host.spore)%>%
+    mutate(perc.viral= viral.spore*100/total)%>%
+  filter(phage!="noPhage")%>%
+  ggplot(aes(x=host,y=perc.viral ))+
+  geom_point(,size=3, fill="grey",alpha=0.5, stroke=2)+
+  facet_grid(.~phage)+
+  scale_shape_manual(values = c(21,3,23))+
+  theme_cowplot()+
+  panel_border()+
+  ylab("Emtrapmet (% viral spores)")
+
+```
+
 
