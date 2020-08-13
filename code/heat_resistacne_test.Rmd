@@ -4,7 +4,7 @@ output: html_notebook
 editor_options: 
   chunk_output_type: inline
 ---
-Chian Jung Chen, Daniel Schwartz and Jay Lennon
+*Chian Jung Chen, Daniel Schwartz and Jay Lennon*
 
 In the host-phage interaction, when infecting cells undergoing sporulation, phage genomes can get entrapped in dormant cells (i.e., viral spores) and start infection upon spore germination.
 Past research found that some homologs of bacteria sporulation genes were carried by phages. However, the reason why phages carry these genes is still unknown. One of these homologs is the *ssp* gene, which encodes for small acid-soluble spore proteins (SASP). SASPs are double-stranded DNA-binding proteins that change the conformation of DNA, protecting the spore from heat, UV radiation, and enzymic degradation.  
@@ -15,7 +15,7 @@ In Bacillus subtilis there are 16 *ssp* paralogs (*sspA*...*sspP*), however spor
 
 ![phylogeny](../figures/SSP_phylo_tree.png)  
    
-AA alignment phylogeny by phylogeny.fr
+**AA alignment phylogeny by phylogeny.fr**
 
 A double knockout B. subtilis strain $\Delta sspAB$ sporulates like the Wild-type (WT), but the spores made have reduced heat resistance (Mason and Setlow 1986 JBac 167:174). 
 
@@ -100,7 +100,40 @@ d%>%
 
 In this preliminary experiment we observed that infection by Goe2 phage partially restored the spore resistance of the $\Delta sspAB$ for bith types of spores, Infection by SPO1 completly restored spore resistance of coloby forming spores but not of viral spores. Encouraged, though slightly confused by these data (how could viruses affect non-viral spores?) we next proceeded to conduct a simmilar experiment with replication.
 
-# Replicated spore resistance assay  
+## Replicated spore resistance assay  
+In this experiment both the WT and $\Delta sspAB$ strains were induced to sporulate in DSM. At the onset of sporulation each of the cultures were infected (MOI=3) with either phage SPO1, phage Goe2 , or with no phage as a control. after 2 days spores were purified and subjected to heat resistance test where both CFU and PFU were measured, folowing regular and viral spores, respectively.  
+The experimet had replication of n=3. where the sporulation and infection assays were all done together. Purified spores were then stored in the fridge. The heat resistance tests were then conducted in 3 groups, on seperate days, each consisting of all treatments at n=1.  
+To make sure we were looking at heat response of ciral spores, and not free viruses, samples of the purified spores were filtered and plaque assayed to measure the levels of free phages (spores exclude by filter while free phages pass theough).
+
+```{r filter plot, echo=FALSE}
+d%>%
+  mutate(phage=fct_relevel(phage,c("noPhage","Goe2", "SPO1")))%>%
+  mutate(host=fct_rev(host))%>%
+  filter(host=="wt"|host=="dsspAB")%>%
+  filter(group!="preliminary")%>%
+  filter(heat.min==0)%>%
+  filter(assay=="PFU")%>%
+  #there are 4 rows with data marked as "TMC" (=Too Many to Count) 
+  # these are coerced into NA
+  mutate(counts=as.numeric(counts))%>%
+  mutate(no.ml = counts/(dilution*ml.plated))%>%
+  pivot_wider(id_cols = c("host","phage","group"), names_from="filter", values_from="no.ml")%>%
+  rename(free.phage=`TRUE`, total=`FALSE`)%>%
+    mutate(perc.free=scales::percent(free.phage/total))%>%
+  ggplot(aes(x=group))+
+  geom_point(data = .%>%pivot_longer(c("total", "free.phage"),names_to="pop" , values_to="PFU.ml"), aes(y=PFU.ml, color=pop, shape=pop),size=2)+
+  geom_text(aes(label=perc.free, y=free.phage/4))+
+  scale_y_log10()+
+  facet_grid(phage~host)+
+  theme_cowplot()+
+  scale_shape_manual(values = c(21,24))+
+  panel_border()+
+  ylab("PFU/ml")+
+  ggtitle("PFU source of untreated samples (t=0)")
+```
+
+In all cases measured the free phages were only a small fraction of the total PFU, being 1.1% or lower. Therfore, we can attribute any PFU decline observed in heat treatment to the change in spore viability. For 3 samples the filtered sample plating was not sufficiently diluted for enumaration.
+
 
 ```{r replicated plot, echo=FALSE}
 d%>%
@@ -116,14 +149,20 @@ d%>%
   group_by(host,phage,assay, group)%>%
   mutate(perc = no.ml/no.ml[heat.min==0])%>%
   ggplot(aes(x=heat.min, y=perc))+
-    geom_line(aes(color=phage, linetype=assay),size=1)+
-    geom_point(aes(color=phage, shape=assay), size=2.5, fill="white")+
+    geom_line(aes(color=assay, linetype=group),size=1)+
+    geom_point(aes(color=assay, shape=group), size=1.5, fill="white")+
   scale_y_log10()+
-  scale_shape_manual(values = c(21,24))+
-    facet_grid(group~host)+
+  scale_shape_manual(values = c(21,23,24))+
+    facet_grid(host~phage)+
   theme_cowplot()+
   panel_border()+
   ylab("viable spore fraction (log)")
+```
+
+### viral spore prevalence  
+
+```{r ciral spore plot, echo=FALSE}
+
 ```
 
 # calculate slopes by linear model
