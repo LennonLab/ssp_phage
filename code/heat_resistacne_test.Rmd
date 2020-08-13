@@ -1,9 +1,26 @@
 ---
-title: "Heat resistance test"
+title: "Spore Heat resistance test"
 output: html_notebook
 editor_options: 
   chunk_output_type: inline
 ---
+Chian Jung Chen, Daniel Schwartz and Jay Lennon
+
+In the host-phage interaction, when infecting cells undergoing sporulation, phage genomes can get entrapped in dormant cells (i.e., viral spores) and start infection upon spore germination.
+Past research found that some homologs of bacteria sporulation genes were carried by phages. However, the reason why phages carry these genes is still unknown. One of these homologs is the *ssp* gene, which encodes for small acid-soluble spore proteins (SASP). SASPs are double-stranded DNA-binding proteins that change the conformation of DNA, protecting the spore from heat, UV radiation, and enzymic degradation.  
+
+In Bacillus subtilis there are 16 *ssp* paralogs (*sspA*...*sspP*), however spore protection is mediated almost entirely by the 2 major SASPs encoded by *sspA* and *sspB*. The *ssp* homologs found in phages SPO1 and Goe2 are most similliar to the major *ssp* genes.  
+
+
+
+![phylogeny](../figures/SSP_phylo_tree.png)  
+   
+AA alignment phylogeny by phylogeny.fr
+
+A double knockout B. subtilis strain $\Delta sspAB$ sporulates like the Wild-type (WT), but the spores made have reduced heat resistance (Mason and Setlow 1986 JBac 167:174). 
+
+
+Based on the host function of the homolog and phage entrapment properties, we hypothesized that paheg *ssp* homologs promote spore heat resistance and will help restore heat resistance of spores made by $\Delta sspAB$.
 
 
 ```{r setup, message=FALSE}
@@ -11,6 +28,7 @@ library(tidyverse, quietly = T)
 library(broom)
 library(cowplot, quietly = T)
 library(here)
+library(ggrepel)
 # set_here("../")
 
 ```
@@ -18,16 +36,46 @@ library(here)
 
 ```{r read in data, message=FALSE, echo=FALSE}
 d <- read_csv(here("data","ssp_data.csv"))
-
 ```
 
-# Preliminary assay data  
+## Preliminary test of spore heat-resistance
 
-```{r prelim plot, echo=FALSE}
+We obtained the $\Delta sspAB$, $\Delta sspC$ and $\Delta sspD$ strains from the BGSC and tested the heat resistance of their spores alongside the B. subtilis 168 WT.For this strains were allowed to sporulate for 2 days in DSM before spores were purified. Spores were then subjected to heat treatment at $90 ^\circ C$ and plated to estimate viable spores from CFU counts. Spore survival data below is presented ad fraction survivers relative to non treated sample (t=0).
+
+```{r prelim host plot, echo=FALSE}
+d%>%
+  mutate(host=fct_rev(host))%>%
+  filter(!filter)%>%
+  filter(date==20200118)%>%
+  #there are 4 rows with data marked as "TMC" (=Too Many to Count) 
+  # these are coerced into NA
+  mutate(counts=as.numeric(counts ))%>%
+  mutate(no.ml = counts/(dilution*ml.plated))%>%
+  # group_by(host)%>%
+  mutate(perc = no.ml/no.ml[heat.min==0])%>%
+  ggplot(aes(x=heat.min, y=perc))+
+    # geom_smooth(aes(color=host),method = "lm", se=F, size=2)+
+    geom_line(aes(color=host), size=2)+
+    geom_point(aes(color=host),size=4, shape=21, fill="white")+
+    geom_text_repel(data=.%>%filter(heat.min>35),aes(label=perc%>%round(digits = 2)))+
+  scale_y_log10()+
+  theme_cowplot()+
+  ylab("viable spore fraction (log)")+
+  xlab("Time at 90dC (min)")
+```
+
+The largest reduction in heat resistance was seen in $\Delta sspAB$, and it is with this strain that we proceded to the next step.
+
+## Preliminary spore resistance test with phage
+
+To test if phages carying *ssp* homologs may restore the heat resistance when infecting a host with reduced resistance, $\Delta sspAB$ were induced to sporulate, as described above, but were infected with phage at the onset of sporulation. After 2 days spores were purified and subjected to heat resistance test. Since infected cultures contain both regular spores and viral-spores (due to entrapment) spore viability in during heat treatment was measured by plating for both colony and plaque forming units and these results are presented seperatly. As controls spores from non-infected WT and $\Delta sspAB$ were also tested by CFU plating. 
+
+```{r prelim phage plot, echo=FALSE}
 d%>%
   mutate(phage=fct_relevel(phage,c("noPhage","Goe2", "SPO1")))%>%
   mutate(host=fct_rev(host))%>%
   filter(host=="wt"|host=="dsspAB")%>%
+  filter(date!=20200118)%>%
   filter(!filter)%>%
   filter(group=="preliminary")%>%
   #there are 4 rows with data marked as "TMC" (=Too Many to Count) 
@@ -37,18 +85,22 @@ d%>%
   group_by(host,phage,assay, date)%>%
   mutate(perc = no.ml/no.ml[heat.min==0])%>%
   ggplot(aes(x=heat.min, y=perc))+
-    geom_line(aes(group=interaction(date,assay),color=phage, linetype=assay))+
-    geom_point(aes(group=interaction(date,assay),color=phage, shape=assay), size=2, fill="white")+
+    geom_line(aes(group=interaction(date,assay, host),color=phage, linetype=assay), size=2)+
+    geom_point(aes(group=interaction(date,assay, host),color=phage, shape=assay), size=3, fill="white")+
   scale_y_log10()+
   scale_shape_manual(values = c(21,24))+
-    facet_wrap(assay~host)+
+      geom_text_repel(data=.%>%filter(heat.min>35),aes(x=heat.min+2,label=perc%>%round(digits = 4),color=phage), xlim = c(40, NA) )+
+    geom_text_repel(data=.%>%filter(heat.min>35 & phage=="noPhage"),aes(label=host),size=5,xlim = c(NA,35), ylim = c(NA,log10(0.5)))+
   theme_cowplot()+
   panel_border()+
-  ylab("viable spore fraction (log)")
+  ylab("viable spore fraction (log)")+
+  xlab("Time at 90dC (min)")+
+  xlim(0,45)
 ```
 
+In this preliminary experiment we observed that infection by Goe2 phage partially restored the spore resistance of the $\Delta sspAB$ for bith types of spores, Infection by SPO1 completly restored spore resistance of coloby forming spores but not of viral spores. Encouraged, though slightly confused by these data (how could viruses affect non-viral spores?) we next proceeded to conduct a simmilar experiment with replication.
 
-# Replicated assay data  
+# Replicated spore resistance assay  
 
 ```{r replicated plot, echo=FALSE}
 d%>%
@@ -64,8 +116,8 @@ d%>%
   group_by(host,phage,assay, group)%>%
   mutate(perc = no.ml/no.ml[heat.min==0])%>%
   ggplot(aes(x=heat.min, y=perc))+
-    geom_line(aes(color=phage, linetype=assay))+
-    geom_point(aes(color=phage, shape=assay), size=2, fill="white")+
+    geom_line(aes(color=phage, linetype=assay),size=1)+
+    geom_point(aes(color=phage, shape=assay), size=2.5, fill="white")+
   scale_y_log10()+
   scale_shape_manual(values = c(21,24))+
     facet_grid(group~host)+
@@ -124,7 +176,7 @@ d%>%
   ggplot(aes(x=heat.min, y=perc))+
     geom_abline(data=d.lm.estimates,
                 aes(slope=slope, intercept=intercept,
-                    color=phage, linetype=assay))+
+                    color=phage, linetype=assay),size=1)+
     geom_point(aes(color=phage, shape=assay), size=2, fill="white")+
   # scale_y_log10()+
   scale_shape_manual(values = c(21,24))+
@@ -146,8 +198,8 @@ d.slopes%>%
 d.slopes%>%
   ggplot(aes(x=phage, y=estimate))+
   geom_crossbar(data=sum.slopes, aes(ymin=ymin, ymax=ymax, color=assay), fill="grey80", position = position_dodge(width=.8), width=.5)+
-  geom_point(aes(fill=assay, shape=assay),size=3, alpha=0.5,
-             position = position_jitterdodge(jitter.width = 0.1,
+  geom_point(aes(fill=assay, shape=assay),size=3, alpha=0.5,stroke=1.5,
+             position = position_jitterdodge(jitter.width = 0.2,
                                             jitter.height = 0))+
   scale_shape_manual(values = c(21,23))+
   theme_cowplot()+
