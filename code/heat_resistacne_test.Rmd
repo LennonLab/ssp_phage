@@ -23,7 +23,7 @@ A double knockout B. subtilis strain $\Delta sspAB$ sporulates like the Wild-typ
 Based on the host function of the homolog and phage entrapment properties, we hypothesized that paheg *ssp* homologs promote spore heat resistance and will help restore heat resistance of spores made by $\Delta sspAB$.
 
 
-```{r setup, message=FALSE}
+```{r setup, include=FALSE}
 library(tidyverse, quietly = T)
 library(broom)
 library(cowplot, quietly = T)
@@ -35,7 +35,7 @@ library(scales)
 ```
 
 
-```{r read in data, message=FALSE, echo=FALSE}
+```{r read in data, include=FALSE}
 d <- read_csv(here("data","ssp_data.csv"))%>%
   mutate(group=str_replace(group, "group.","g"))
 ```
@@ -44,7 +44,7 @@ d <- read_csv(here("data","ssp_data.csv"))%>%
 
 We obtained the $\Delta sspAB$, $\Delta sspC$ and $\Delta sspD$ strains from the BGSC and tested the heat resistance of their spores alongside the B. subtilis 168 WT.For this strains were allowed to sporulate for 2 days in DSM before spores were purified. Spores were then subjected to heat treatment at $90 ^\circ C$ and plated to estimate viable spores from CFU counts. Spore survival data below is presented ad fraction survivers relative to non treated sample (t=0).
 
-```{r prelim host plot, echo=FALSE}
+```{r prelim host plot, include=FALSE}
 d%>%
   mutate(host=fct_rev(host))%>%
   filter(!filter)%>%
@@ -72,7 +72,7 @@ The largest reduction in heat resistance was seen in $\Delta sspAB$, and it is w
 
 To test if phages carying *ssp* homologs may restore the heat resistance when infecting a host with reduced resistance, $\Delta sspAB$ were induced to sporulate, as described above, but were infected with phage at the onset of sporulation. After 2 days spores were purified and subjected to heat resistance test. Since infected cultures contain both regular spores and viral-spores (due to entrapment) spore viability in during heat treatment was measured by plating for both colony and plaque forming units and these results are presented seperatly. As controls spores from non-infected WT and $\Delta sspAB$ were also tested by CFU plating. 
 
-```{r prelim phage plot, echo=FALSE}
+```{r prelim phage plot, include=FALSE}
 d%>%
   mutate(phage=fct_relevel(phage,c("noPhage","Goe2", "SPO1")))%>%
   mutate(host=fct_rev(host))%>%
@@ -107,7 +107,7 @@ In this experiment both the WT and $\Delta sspAB$ strains were induced to sporul
 The experimet had replication of n=3. where the sporulation and infection assays were all done together. Purified spores were then stored in the fridge. The heat resistance tests were then conducted in 3 groups, on seperate days, each consisting of all treatments at n=1. Samples were plated before heat treatment (t=0) and after 15,30 and 45 min of heat treatment.    
 To make sure we were looking at heat response of ciral spores, and not free viruses, samples of the purified spores were filtered and plaque assayed to measure the levels of free phages (spores exclude by filter while free phages pass theough).
 
-```{r filter plot, echo=FALSE}
+```{r filter plot, include=FALSE}
 d%>%
   mutate(phage=fct_relevel(phage,c("noPhage","Goe2", "SPO1")))%>%
   mutate(host=fct_rev(host))%>%
@@ -139,7 +139,7 @@ In all cases measured the free phages were only a small fraction of the total PF
 
 
 Next we present the change in titer during heat treatment, normalized to t=0.  
-```{r replicated plot, echo=FALSE}
+```{r replicated plot, include=FALSE}
 d%>%
   mutate(phage=fct_relevel(phage,c("noPhage","Goe2", "SPO1")))%>%
   mutate(host=fct_rev(host))%>%
@@ -163,16 +163,13 @@ d%>%
   ylab("viable spore fraction (log)")
 ```
 
-Once again we see that, in the absence of phage, WT spore titer barely changes by heat treatment while the $\Delta sspAB$ strain titer drops by nearly 2 orfers of magnitude. In most cases it is not obvious if the infection with phage alters that response. However spores produced in WT cultures infeted with Goe2 appear less resistant in 2 of 3 replication groups, seen both in CFU and PFU (upper middle panel).
+Once again we see that, in the absence of phage, WT spore titer barely changes by heat treatment while the $\Delta sspAB$ strain titer drops by nearly 2 orfers of magnitude. In most cases it is not obvious if the infection with phage alters that response. However spores produced in WT cultures infeted with Goe2 appear less resistant in 2 of 3 replication groups, seen both in CFU and PFU (upper middle panel).  
 
 
+## Comparing slopes  
+To be able to compare the heat-resistance of different samples and treatments we next estimate the slope of each curve vy fitting a linear model. The estimated parameters of the models are given in the following tables, where each line is a single paramter (see column `term`; `heat.min` is the slope).  
 
-
-
-
-# calculate slopes by linear model
-
-```{r slopes, message=FALSE, echo=FALSE}
+```{r slopes, echo=FALSE}
 d.lm <- 
 d%>%
   mutate(phage=fct_relevel(phage,c("noPhage","Goe2", "SPO1")))%>%
@@ -197,8 +194,26 @@ d%>%
   
   d.slopes <- 
     filter(d.lm,term=="heat.min")
-
+  
   d.lm
+```
+
+
+
+```{r slopes pval, echo=FALSE}
+    d.lm%>%
+  pivot_wider(id_cols = c(host, phage, assay, group),names_from=term, values_from=p.value)%>%
+  rename(slope=heat.min, intercept=`(Intercept)` )%>%
+    ggplot(aes(x=intercept, y=slope))+
+    geom_hline(yintercept = 0.05, size=1, color="grey")+
+  geom_vline(xintercept = 0.05, size=1, color="grey")+
+      geom_point(aes(color=host, shape=phage))+
+      # facet_wrap(~term, scales = "free_x")+
+    scale_shape_manual(values = c(21,23,24))+
+      theme_cowplot()+
+  scale_y_log10()+
+  scale_x_log10()+
+  ggtitle("P values of estimated prameters","Grey lines mark P=0.05")
 ```
 
 # plot estimated slopes  
