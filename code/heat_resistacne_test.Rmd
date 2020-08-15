@@ -276,6 +276,45 @@ d.slopes%>%
   summary(.)
 ```
 
+## Endpoint  
+```{r endpoint plot, include=FALSE}
+d.endpoint <-
+d%>%
+  mutate(phage=fct_relevel(phage,c("noPhage","Goe2", "SPO1")))%>%
+  mutate(host=fct_rev(host))%>%
+  filter(host=="wt"|host=="dsspAB")%>%
+  filter(!filter)%>%
+  filter(group!="preliminary")%>%
+  mutate(counts=as.numeric(counts ))%>%
+  mutate(no.ml = counts/(dilution*ml.plated))%>%
+  group_by(host,phage,assay, group)%>%
+  mutate(perc = no.ml/no.ml[heat.min==0])%>%
+  filter(heat.min==45)
+
+sum.endpoint <- 
+d.endpoint%>%
+  group_by(host, phage,assay)%>%
+  summarise(mean=mean(perc), ymin=mean-sd(perc), ymax=mean+sd(perc))
+
+d.endpoint%>%
+  ggplot(aes(x=phage, y=perc))+
+  geom_crossbar(data=sum.endpoint, aes(y=mean,ymin=ymin, ymax=ymax, color=assay), fill="grey80", position = position_dodge(width=.8), width=.5)+
+  geom_point(aes(fill=assay, shape=assay),size=3, alpha=0.5,stroke=1.5,
+             position = position_jitterdodge(jitter.width = 0.2,
+                                            jitter.height = 0))+
+  scale_shape_manual(values = c(21,23))+
+  theme_cowplot()+
+  panel_border()+
+  facet_wrap(~host,nrow = 1)+
+  ylab("% spores at 45min")+
+  ggtitle("Spore survival (90dC, 45min)","box is mean±SD")
+
+```
+
+```{r ANOVA endpoint, include=FALSE}
+  aov(perc~host+phage+assay+group, d.endpoint)%>%
+  summary(.)
+```
 
 # viral spore prevalence  
 While not the main hypothesis here we could also ask whther the *ssp* gene of phages and hosts affect the prospects of entrapment. We can adress this by looking at the level of entrapment.
