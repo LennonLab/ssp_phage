@@ -313,11 +313,9 @@ d.slopes%>%
 
 d.slopes%>%
   ggplot(aes(x=phage, y=estimate))+
-  geom_crossbar(data=sum.slopes, aes(ymin=ymin, ymax=ymax, color=assay), fill="grey80", position = position_dodge(width=.8), width=.5)+
-  geom_point(aes(fill=assay, shape=assay),size=3, alpha=0.5,stroke=1.5,
-             position = position_jitterdodge(jitter.width = 0.2,
-                                            jitter.height = 0))+
-  scale_shape_manual(values = c(21,23))+
+  geom_crossbar(data=sum.slopes, aes(ymin=ymin, ymax=ymax, fill=assay),alpha=.3, position = position_dodge(width=.8), width=.5)+
+  geom_point(aes(fill=assay, shape=group),size=3, stroke=1.5,position = position_jitterdodge(jitter.width = 0.01,jitter.height = 0))+
+  scale_shape_manual(values = c(21,23,24))+
   theme_cowplot()+
   panel_border()+
   facet_wrap(~host,nrow = 1)+
@@ -334,9 +332,25 @@ The effect of host strain is obviously very strong. How about the phage treatmen
   summary(.)
 ```
 
-The effect of phage on the slope is not significant, but almost.
+The effect of phage on the slope is not signifi.cant, with a P-value slightly greater then a 0.05 significance threshold. The replication group is lower than the threshold. Which of the groups is responsible for that? I next preform a pairwise t.test for the 3 groups. I do this seperatly for each host. WT host first:  
+```{r}
+d.slopes%>%
+  filter(host=="wt")%>%
+{pairwise.t.test(.$estimate,.$group, p.adjust.method = "BH")}
+```
+
+And t.test for the $\Delta sspAB$ host:  
+```{r}
+d.slopes%>%
+  filter(host!="wt")%>%
+{pairwise.t.test(.$estimate,.$group, p.adjust.method = "BH")}
+```
+
+Something is a bit off with group 3 it seems.
+
 
 ## Endpoint  
+Rather than using an estomated slope parameter we can also use the fraction of surviving spores at the end of the heat treatemnt (i.e.  [titer at T~end~]/[titer at T~0~]).  
 ```{r endpoint plot, include=FALSE}
 d.endpoint <-
 d%>%
@@ -358,11 +372,11 @@ d.endpoint%>%
 
 d.endpoint%>%
   ggplot(aes(x=phage, y=perc))+
-  geom_crossbar(data=sum.endpoint, aes(y=mean,ymin=ymin, ymax=ymax, color=assay), fill="grey80", position = position_dodge(width=.8), width=.5)+
-  geom_point(aes(fill=assay, shape=assay),size=3, alpha=0.5,stroke=1.5,
+  geom_crossbar(data=sum.endpoint, aes(y=mean,ymin=ymin, ymax=ymax, fill=assay),alpha=.3, position = position_dodge(width=.8), width=.5)+
+  geom_point(aes(fill=assay, shape=group),size=3,stroke=1.5,
              position = position_jitterdodge(jitter.width = 0.2,
                                             jitter.height = 0))+
-  scale_shape_manual(values = c(21,23))+
+  scale_shape_manual(values = c(21,23,24))+
   theme_cowplot()+
   panel_border()+
   facet_wrap(~host,nrow = 1)+
@@ -371,6 +385,7 @@ d.endpoint%>%
 
 ```
 
+And like above we can run ANOVA on surviving fraction at end point:  
 ```{r ANOVA endpoint, include=FALSE}
   aov(perc~phage+host+assay+group, d.endpoint)$call%>%
   print()
