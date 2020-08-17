@@ -1,7 +1,7 @@
 ---
 title: "Spore Heat resistance test"
 output: html_notebook
-editor_options: 
+editor_options:
   chunk_output_type: inline
 ---
 *Chian Jung Chen, Daniel Schwartz and Jay Lennon*
@@ -23,7 +23,7 @@ A double knockout B. subtilis strain $\Delta sspAB$ sporulates like the Wild-typ
 Based on the host function of the homolog and phage entrapment properties, we hypothesized that phage *ssp* homologs promote spore heat resistance and will help restore heat resistance of spores made by $\Delta sspAB$.
 
 
-```{r setup, include=FALSE}
+```{r setup,  echo=FALSE, message=FALSE, warning=FALSE}
 library(tidyverse, quietly = T)
 library(broom)
 library(cowplot, quietly = T)
@@ -31,11 +31,11 @@ library(here)
 library(ggrepel)
 library(scales)
 # set_here("../")
-
+knitr::opts_chunk$set(fig.width=10, fig.height=7,fig.align="center")
 ```
 
 
-```{r read in data, include=FALSE}
+```{r read in data,  echo=FALSE, message=FALSE, warning=FALSE}
 d <- read_csv(here("data","ssp_data.csv"))%>%
   mutate(group=str_replace(group, "group.","g"))
 ```
@@ -44,7 +44,7 @@ d <- read_csv(here("data","ssp_data.csv"))%>%
 
 We obtained the $\Delta sspAB$, $\Delta sspC$ and $\Delta sspD$ strains from the BGSC and tested the heat resistance of their spores alongside the B. subtilis 168 WT.For this strains were allowed to sporulate for 2 days in DSM before spores were purified. Spores were then subjected to heat treatment at $90 ^\circ C$ and plated to estimate viable spores from CFU counts. Spore survival data below is presented ad fraction survivors relative to non treated sample (t=0).
 
-```{r prelim host plot, include=FALSE}
+```{r prelim host plot, message=FALSE, warning=FALSE}
 d%>%
   mutate(host=fct_rev(host))%>%
   filter(!filter)%>%
@@ -72,7 +72,7 @@ The largest reduction in heat resistance was seen in $\Delta sspAB$, and it is w
 
 To test if phages carrying *ssp* homologs may restore the heat resistance when infecting a host with reduced resistance, $\Delta sspAB$ were induced to sporulate, as described above, but were infected with phage at the onset of sporulation. After 2 days spores were purified and subjected to heat resistance test. Since infected cultures contain both regular spores and viral-spores (due to entrapment) spore viability in during heat treatment was measured by plating for both colony and plaque forming units and these results are presented separately. As controls spores from non-infected WT and $\Delta sspAB$ were also tested by CFU plating. 
 
-```{r prelim phage plot, include=FALSE}
+```{r prelim phage plot,  message=FALSE, warning=FALSE}
 d%>%
   mutate(phage=fct_relevel(phage,c("noPhage","Goe2", "SPO1")))%>%
   mutate(host=fct_rev(host))%>%
@@ -107,7 +107,7 @@ In this experiment both the WT and $\Delta sspAB$ strains were induced to sporul
 The experiment had replication of n=3. where the sporulation and infection assays were all done together. Purified spores were then stored in the fridge. The heat resistance tests were then conducted in 3 groups, on separate days, each consisting of all treatments at n=1. Samples were plated before heat treatment (t=0) and after 15,30 and 45 min of heat treatment.    
 To make sure we were looking at heat response of viral spores, and not free viruses, samples of the purified spores were filtered and plaque assayed to measure the levels of free phages (spores exclude by filter while free phages pass through).
 
-```{r filter plot, include=FALSE}
+```{r filter plot,  echo=FALSE, message=FALSE, warning=FALSE}
 d%>%
   mutate(phage=fct_relevel(phage,c("noPhage","Goe2", "SPO1")))%>%
   mutate(host=fct_rev(host))%>%
@@ -139,7 +139,7 @@ In all cases measured the free phages were only a small fraction of the total PF
 
 
 Next we present the change in titer during heat treatment, normalized to t=0.  
-```{r replicated plot, include=FALSE}
+```{r replicated plot,  echo=FALSE, message=FALSE, warning=FALSE}
 d%>%
   mutate(phage=fct_relevel(phage,c("noPhage","Goe2", "SPO1")))%>%
   mutate(host=fct_rev(host))%>%
@@ -286,7 +286,7 @@ d%>%
 ```
 
 
-```{r slopes pval, eval=FALSE, include=FALSE}
+```{r slopes pval, eval=FALSE,  echo=FALSE, message=FALSE, warning=FALSE}
   #   d.lm%>%
   # pivot_wider(id_cols = c(host, phage, assay, group),names_from=term, values_from=p.value)%>%
   # rename(slope=heat.min, intercept=`(Intercept)` )%>%
@@ -303,7 +303,7 @@ d%>%
 ```
 
 If we do take the slopes as meaningful we can now ask if the presence of phage has an effect on the response of spore titer to heat treatment. First a look at the data. 
-```{r compare slopes, include=FALSE}
+```{r compare slopes,  echo=FALSE, message=FALSE, warning=FALSE}
 
 sum.slopes <- 
 d.slopes%>%
@@ -333,14 +333,14 @@ The effect of host strain is obviously very strong. How about the phage treatmen
 ```
 
 The effect of phage on the slope is not signifi.cant, with a P-value slightly greater then a 0.05 significance threshold. The replication group is lower than the threshold. Which of the groups is responsible for that? I next preform a pairwise t.test for the 3 groups. I do this seperatly for each host. WT host first:  
-```{r}
+```{r,  echo=FALSE}
 d.slopes%>%
   filter(host=="wt")%>%
 {pairwise.t.test(.$estimate,.$group, p.adjust.method = "BH")}
 ```
 
 And t.test for the $\Delta sspAB$ host:  
-```{r}
+```{r,  echo=FALSE}
 d.slopes%>%
   filter(host!="wt")%>%
 {pairwise.t.test(.$estimate,.$group, p.adjust.method = "BH")}
@@ -350,8 +350,8 @@ Something is a bit off with group 3 it seems.
 
 
 ## Endpoint  
-Rather than using an estomated slope parameter we can also use the fraction of surviving spores at the end of the heat treatemnt (i.e.  [titer at T~end~]/[titer at T~0~]).  
-```{r endpoint plot, include=FALSE}
+Rather than using an estimated slope parameter we can also use the fraction of surviving spores at the end of the heat treatemnt (i.e.  [titer at T~end~]/[titer at T~0~]).  
+```{r endpoint plot,  echo=FALSE, message=FALSE, warning=FALSE}
 d.endpoint <-
 d%>%
   mutate(phage=fct_relevel(phage,c("noPhage","Goe2", "SPO1")))%>%
@@ -386,7 +386,7 @@ d.endpoint%>%
 ```
 
 And like above we can run ANOVA on surviving fraction at end point:  
-```{r ANOVA endpoint, include=FALSE}
+```{r ANOVA endpoint,  echo=FALSE, message=FALSE, warning=FALSE}
   aov(perc~phage+host+assay+group, d.endpoint)$call%>%
   print()
 
@@ -398,7 +398,7 @@ And like above we can run ANOVA on surviving fraction at end point:
 
 # viral spore prevalence  
 While not the main hypothesis here, we could also ask whether the *ssp* gene of phages and hosts affect the prospects of entrapment. We can address this by looking at the level of entrapment.
-```{r viral spore plot, echo=FALSE}
+```{r all spore plot,  echo=FALSE, message=FALSE, warning=FALSE}
 d%>%
   mutate(phage=fct_relevel(phage,c("noPhage","Goe2", "SPO1")))%>%
   mutate(host=fct_rev(host))%>%
@@ -423,17 +423,15 @@ d%>%
   scale_shape_manual(values = c(21,3,23))+
   theme_cowplot()+
   panel_border()+
-  ylab("PFU/ml")+
+  ylab("No./ml")+
   ggtitle("Spore Titers and %viral spores")
 
 ```
 
 A couple of things to notice:  
 1. Total spore titer of infected cultures seems higher when infecting $\Delta sspAB$ host (green + signs).  
-2. In all cases entrapment (% viral spores) is higher when infecting $\Delta sspAB$ host.
 
-
-```{r ciral spore plot, echo=FALSE}
+```{r viral spore plot, message=FALSE, warning=FALSE,echo=FALSE}
 d%>%
   mutate(phage=fct_relevel(phage,c("noPhage","Goe2", "SPO1")))%>%
   mutate(host=fct_rev(host))%>%
@@ -441,8 +439,6 @@ d%>%
   filter(group!="preliminary")%>%
   filter(!filter)%>%
   filter(heat.min==0)%>%
-  #there are 4 rows with data marked as "TMC" (=Too Many to Count) 
-  # these are coerced into NA
   mutate(counts=as.numeric(counts))%>%
   mutate(no.ml = counts/(dilution*ml.plated))%>%
   pivot_wider(id_cols = c("host","phage","group"), names_from="assay", values_from="no.ml")%>%
@@ -450,11 +446,11 @@ d%>%
   mutate(total=viral.spore+host.spore)%>%
     mutate(perc.viral=percent(viral.spore/total))%>%
   mutate(total=ifelse(is.na(total),host.spore,total ))%>%
-  ggplot(aes(x=group, y=total))+
-  geom_point(aes(color=phage, shape=phage),size=3, fill="grey",alpha=0.5, stroke=2)+
-  # geom_text(aes(label=perc.viral), y=9.5)+
+  ggplot(aes(x=host, y=total))+
+    geom_line(aes(group=group, color=group),alpha=0.5,size=1)+
+  geom_point(aes(color=group, shape=group),size=3, fill="grey",alpha=0.5, stroke=2)+
   scale_y_log10(limits=c(1e8,3e9))+
-  facet_grid(.~host)+
+  facet_grid(.~phage)+
   scale_shape_manual(values = c(21,23,24))+
   theme_cowplot()+
   panel_border()+
@@ -463,7 +459,31 @@ d%>%
 
 ```
 
-```{r percent viral spore plot, echo=FALSE}
+This appears to be driven mostly by additional viral spores:  
+```{r response spore plot, message=FALSE, warning=FALSE,echo=FALSE}
+d%>%
+  mutate(phage=fct_relevel(phage,c("noPhage","Goe2", "SPO1")))%>%
+  mutate(host=fct_rev(host))%>%
+  filter(host=="wt"|host=="dsspAB")%>%
+  filter(group!="preliminary")%>%
+  filter(!filter)%>%
+  filter(heat.min==0)%>%
+  mutate(counts=as.numeric(counts))%>%
+  mutate(no.ml = counts/(dilution*ml.plated))%>%
+  ggplot(aes(x=host, y=no.ml))+
+    geom_line(aes(group=group, color=group),alpha=0.5,size=1)+
+  geom_point(aes(color=group, shape=group),size=3, fill="grey",alpha=0.5, stroke=2)+
+  scale_y_log10(limits=c(1e7,3e9))+
+  facet_grid(assay~phage)+
+  scale_shape_manual(values = c(21,23,24))+
+  theme_cowplot()+
+  panel_border()
+
+```
+
+Which taken together leads to the second point I noticed in the initial plot of this section:  
+2. In all cases entrapment (% viral spores) is higher when infecting $\Delta sspAB$ host.  
+```{r percent viral spore plot,  message=FALSE, warning=FALSE,echo=FALSE}
 d%>%
   mutate(phage=fct_relevel(phage,c("noPhage","Goe2", "SPO1")))%>%
   mutate(host=fct_rev(host))%>%
@@ -481,7 +501,8 @@ d%>%
     mutate(perc.viral= viral.spore*100/total)%>%
   filter(phage!="noPhage")%>%
   ggplot(aes(x=host,y=perc.viral ))+
-  geom_point(,size=3, fill="grey",alpha=0.5, stroke=2)+
+  geom_line(aes(group=group), size=1)+
+  geom_point(size=3, fill="grey",alpha=0.5, stroke=2)+
   facet_grid(.~phage)+
   scale_shape_manual(values = c(21,3,23))+
   theme_cowplot()+
@@ -490,4 +511,52 @@ d%>%
 
 ```
 
+_I note that in the last few plots I drew lines between replication groups across host strains. I want to point out that these groups were only assayed together (plating) and are not truely coupled._
 
+# Are host SASPs defending against entrapment?? how does this relate to homolog presence in phage?
+
+ANOVA for spore yield (based on t=0):  
+```{r}
+d%>%
+  mutate(phage=fct_relevel(phage,c("noPhage","Goe2", "SPO1")))%>%
+  mutate(host=fct_rev(host))%>%
+  filter(host=="wt"|host=="dsspAB")%>%
+  filter(group!="preliminary")%>%
+  filter(!filter)%>%
+  filter(heat.min==0)%>%
+  mutate(counts=as.numeric(counts))%>%
+  mutate(no.ml = counts/(dilution*ml.plated))%>%
+  aov(no.ml~phage+host+assay+group, data = .)%>%
+  summary()
+```
+
+t.test phage effect on spore titer in WT host
+```{r,  echo=FALSE}
+d%>%
+  mutate(phage=fct_relevel(phage,c("noPhage","Goe2", "SPO1")))%>%
+  mutate(host=fct_rev(host))%>%
+  filter(host=="wt"|host=="dsspAB")%>%
+  filter(group!="preliminary")%>%
+  filter(!filter)%>%
+  filter(heat.min==0)%>%
+  mutate(counts=as.numeric(counts))%>%
+  mutate(no.ml = counts/(dilution*ml.plated))%>%
+  filter(host=="wt")%>%
+{pairwise.t.test(.$no.ml,.$phage, p.adjust.method = "BH")}
+```
+
+t.test phage effect on spore in $\Delta sspAB$ host
+
+```{r,  echo=FALSE}
+d%>%
+  mutate(phage=fct_relevel(phage,c("noPhage","Goe2", "SPO1")))%>%
+  mutate(host=fct_rev(host))%>%
+  filter(host=="wt"|host=="dsspAB")%>%
+  filter(group!="preliminary")%>%
+  filter(!filter)%>%
+  filter(heat.min==0)%>%
+  mutate(counts=as.numeric(counts))%>%
+  mutate(no.ml = counts/(dilution*ml.plated))%>%
+  filter(host!="wt")%>%
+{pairwise.t.test(.$no.ml,.$phage, p.adjust.method = "BH")}
+```
