@@ -7,9 +7,9 @@ editor_options:
 *Chian Jung Chen, Daniel Schwartz and Jay Lennon*
 
 In the host-phage interaction, when infecting cells undergoing sporulation, phage genomes can get entrapped in dormant cells (i.e., viral spores) and start infection upon spore germination.
-Past research found that some homologs of bacteria sporulation genes were carried by phages. However, the reason why phages carry these genes is still unknown. One of these homologs is the *ssp* gene, which encodes for small acid-soluble spore proteins (SASP). SASPs are double-stranded DNA-binding proteins that change the conformation of DNA, protecting the spore from heat, UV radiation, and enzymic degradation.  
+Past research found that some homologs of bacteria sporulation genes were carried by phages. However, the reason why phages carry these genes is still unknown. One of these homologs is the *ssp* gene, which encodes for small acid-soluble spore proteins (SASP). SASPs are double-stranded DNA-binding proteins that change the conformation of DNA, protecting the spore from heat, UV radiation, and enzymatic degradation.  
 
-In Bacillus subtilis there are 16 *ssp* paralogs (*sspA*...*sspP*), however spore protection is mediated almost entirely by the 2 major SASPs encoded by *sspA* and *sspB*. The *ssp* homologs found in phages SPO1 and Goe2 are most similliar to the major *ssp* genes.  
+In Bacillus subtilis there are 16 *ssp* paralogs (*sspA*...*sspP*), however spore protection is mediated almost entirely by the 2 major SASPs encoded by *sspA* and *sspB*. The *ssp* homologs found in phages SPO1 and Goe2 are most similar to the major *ssp* genes.  
 
 
 
@@ -20,7 +20,7 @@ In Bacillus subtilis there are 16 *ssp* paralogs (*sspA*...*sspP*), however spor
 A double knockout B. subtilis strain $\Delta sspAB$ sporulates like the Wild-type (WT), but the spores made have reduced heat resistance (Mason and Setlow 1986 JBac 167:174). 
 
 
-Based on the host function of the homolog and phage entrapment properties, we hypothesized that paheg *ssp* homologs promote spore heat resistance and will help restore heat resistance of spores made by $\Delta sspAB$.
+Based on the host function of the homolog and phage entrapment properties, we hypothesized that phage *ssp* homologs promote spore heat resistance and will help restore heat resistance of spores made by $\Delta sspAB$.
 
 
 ```{r setup, include=FALSE}
@@ -42,7 +42,7 @@ d <- read_csv(here("data","ssp_data.csv"))%>%
 
 ## Preliminary test of spore heat-resistance
 
-We obtained the $\Delta sspAB$, $\Delta sspC$ and $\Delta sspD$ strains from the BGSC and tested the heat resistance of their spores alongside the B. subtilis 168 WT.For this strains were allowed to sporulate for 2 days in DSM before spores were purified. Spores were then subjected to heat treatment at $90 ^\circ C$ and plated to estimate viable spores from CFU counts. Spore survival data below is presented ad fraction survivers relative to non treated sample (t=0).
+We obtained the $\Delta sspAB$, $\Delta sspC$ and $\Delta sspD$ strains from the BGSC and tested the heat resistance of their spores alongside the B. subtilis 168 WT.For this strains were allowed to sporulate for 2 days in DSM before spores were purified. Spores were then subjected to heat treatment at $90 ^\circ C$ and plated to estimate viable spores from CFU counts. Spore survival data below is presented ad fraction survivors relative to non treated sample (t=0).
 
 ```{r prelim host plot, include=FALSE}
 d%>%
@@ -66,11 +66,11 @@ d%>%
   xlab("Time at 90dC (min)")
 ```
 
-The largest reduction in heat resistance was seen in $\Delta sspAB$, and it is with this strain that we proceded to the next step.
+The largest reduction in heat resistance was seen in $\Delta sspAB$, and it is with this strain that we proceeded to the next step.
 
 ## Preliminary spore resistance test with phage
 
-To test if phages carying *ssp* homologs may restore the heat resistance when infecting a host with reduced resistance, $\Delta sspAB$ were induced to sporulate, as described above, but were infected with phage at the onset of sporulation. After 2 days spores were purified and subjected to heat resistance test. Since infected cultures contain both regular spores and viral-spores (due to entrapment) spore viability in during heat treatment was measured by plating for both colony and plaque forming units and these results are presented seperatly. As controls spores from non-infected WT and $\Delta sspAB$ were also tested by CFU plating. 
+To test if phages carrying *ssp* homologs may restore the heat resistance when infecting a host with reduced resistance, $\Delta sspAB$ were induced to sporulate, as described above, but were infected with phage at the onset of sporulation. After 2 days spores were purified and subjected to heat resistance test. Since infected cultures contain both regular spores and viral-spores (due to entrapment) spore viability in during heat treatment was measured by plating for both colony and plaque forming units and these results are presented separately. As controls spores from non-infected WT and $\Delta sspAB$ were also tested by CFU plating. 
 
 ```{r prelim phage plot, include=FALSE}
 d%>%
@@ -100,12 +100,12 @@ d%>%
   xlim(0,45)
 ```
 
-In this preliminary experiment we observed that infection by Goe2 phage partially restored the spore resistance of the $\Delta sspAB$ for bith types of spores, Infection by SPO1 completly restored spore resistance of coloby forming spores but not of viral spores. Encouraged, though slightly confused by these data (how could viruses affect non-viral spores?) we next proceeded to conduct a simmilar experiment with replication.
+In this preliminary experiment we observed that infection by Goe2 phage partially restored the spore resistance of the $\Delta sspAB$ for both types of spores, Infection by SPO1 completely restored spore resistance of colony forming spores but not of viral spores. Encouraged, though slightly confused by these data (how could viruses affect non-viral spores?) we next proceeded to conduct a similar experiment with replication.
 
 ## Replicated spore resistance assay  
-In this experiment both the WT and $\Delta sspAB$ strains were induced to sporulate in DSM. At the onset of sporulation each of the cultures were infected (MOI=3) with either phage SPO1, phage Goe2 , or with no phage as a control. after 2 days spores were purified and subjected to heat resistance test where both CFU and PFU were measured, folowing regular and viral spores, respectively.  
-The experimet had replication of n=3. where the sporulation and infection assays were all done together. Purified spores were then stored in the fridge. The heat resistance tests were then conducted in 3 groups, on seperate days, each consisting of all treatments at n=1. Samples were plated before heat treatment (t=0) and after 15,30 and 45 min of heat treatment.    
-To make sure we were looking at heat response of ciral spores, and not free viruses, samples of the purified spores were filtered and plaque assayed to measure the levels of free phages (spores exclude by filter while free phages pass theough).
+In this experiment both the WT and $\Delta sspAB$ strains were induced to sporulate in DSM. At the onset of sporulation each of the cultures were infected (MOI=3) with either phage SPO1, phage Goe2 , or with no phage as a control. after 2 days spores were purified and subjected to heat resistance test where both CFU and PFU were measured, following regular and viral spores, respectively.  
+The experiment had replication of n=3. where the sporulation and infection assays were all done together. Purified spores were then stored in the fridge. The heat resistance tests were then conducted in 3 groups, on separate days, each consisting of all treatments at n=1. Samples were plated before heat treatment (t=0) and after 15,30 and 45 min of heat treatment.    
+To make sure we were looking at heat response of viral spores, and not free viruses, samples of the purified spores were filtered and plaque assayed to measure the levels of free phages (spores exclude by filter while free phages pass through).
 
 ```{r filter plot, include=FALSE}
 d%>%
@@ -134,7 +134,7 @@ d%>%
   ggtitle("PFU source of untreated samples (t=0)")
 ```
 
-In all cases measured the free phages were only a small fraction of the total PFU, being 1.1% or lower. Therfore, we can attribute any PFU decline observed in heat treatment to the change in spore viability. For 3 samples (all in group.1) the filtered sample plating was not sufficiently diluted for enumaration.
+In all cases measured the free phages were only a small fraction of the total PFU, being 1.1% or lower. Therefore, we can attribute any PFU decline observed in heat treatment to the change in spore viability. For 3 samples (all in group.1) the filtered sample plating was not sufficiently diluted for enumeration.
 
 
 
@@ -163,11 +163,11 @@ d%>%
   ylab("viable spore fraction (log)")
 ```
 
-Once again we see that, in the absence of phage, WT spore titer barely changes by heat treatment while the $\Delta sspAB$ strain titer drops by nearly 2 orfers of magnitude. In most cases it is not obvious if the infection with phage alters that response. However spores produced in WT cultures infeted with Goe2 appear less resistant in 2 of 3 replication groups, seen both in CFU and PFU (upper middle panel).  
+Once again we see that, in the absence of phage, WT spore titer barely changes by heat treatment while the $\Delta sspAB$ strain titer drops by nearly 2 orders of magnitude. In most cases it is not obvious if the infection with phage alters that response. However spores produced in WT cultures infected with Goe2 appear less resistant in 2 of 3 replication groups, seen both in CFU and PFU (upper middle panel).  
 
 
 ## Comparing slopes  
-To be able to compare the heat-resistance of different samples and treatments we next estimate the slope of each curve vy fitting a linear model. The estimated parameters of the models are given in the following tables, where each line is a single paramter (see column `term`; `heat.min` is the slope).  
+To be able to compare the heat-resistance of different samples and treatments we next estimate the slope of each curve by fitting a linear model. The estimated parameters of the models are given in the following tables, where each line is a single parameter (see column `term`; `heat.min` is the slope).  
 
 ```{r slopes, echo=FALSE}
 d.lm <- 
@@ -182,9 +182,28 @@ d%>%
   mutate(counts=as.numeric(counts ))%>%
   mutate(no.ml = counts/(dilution*ml.plated))%>%
   group_by(host,phage,assay, group)%>%
-  mutate(perc = no.ml/no.ml[heat.min==0]) %>%
+  mutate(perc = no.ml/no.ml[heat.min==0])
+
+d.lm.fit <- 
+  d.lm%>%
+   do(glance(lm(perc~heat.min,.)))
+# values returned by glance:
+# r.squared: The percent of variance explained by the model
+# adj.r.squared: r.squared adjusted based on the degrees of freedom
+# sigma: The square root of the estimated residual variance
+# statistic: F-statistic
+# p.value: p-value from the F test, describing whether the full regression is significant
+# df: Degrees of freedom used by the coefficients
+# logLik: the data's log-likelihood under the model
+# AIC: the Akaike Information Criterion
+# BIC: the Bayesian Information Criterion
+# deviance: deviance
+# df.residual: residual degrees of freedom
+
+d.lm <- 
+  d.lm%>%
    do(tidy(lm(perc~heat.min,.)))
-  
+ 
   d.lm.estimates <- 
     d.lm%>%
     select(host,phage,assay,group,term,estimate)%>%
@@ -198,26 +217,8 @@ d%>%
   d.lm
 ```
 
-
-
-```{r slopes pval, echo=FALSE}
-    d.lm%>%
-  pivot_wider(id_cols = c(host, phage, assay, group),names_from=term, values_from=p.value)%>%
-  rename(slope=heat.min, intercept=`(Intercept)` )%>%
-    ggplot(aes(x=intercept, y=slope))+
-    geom_hline(yintercept = 0.05, size=1, color="grey")+
-  geom_vline(xintercept = 0.05, size=1, color="grey")+
-      geom_point(aes(color=host, shape=phage))+
-      # facet_wrap(~term, scales = "free_x")+
-    scale_shape_manual(values = c(21,23,24))+
-      theme_cowplot()+
-  scale_y_log10()+
-  scale_x_log10()+
-  ggtitle("P values of estimated prameters","Grey lines mark P=0.05")
-```
-
 # plot estimated slopes  
-Verifying that predicted linear models are in agreement with measured points.  
+Next we plot the predicted linear models to see if they are in agreement with measured points.  
 
 ```{r plot slopes, echo=FALSE}
 d%>%
@@ -237,16 +238,72 @@ d%>%
                 aes(slope=slope, intercept=intercept,
                     color=phage, linetype=assay),size=1)+
     geom_point(aes(color=phage, shape=assay), size=2, fill="white")+
-  # scale_y_log10()+
+    geom_text(data=d.lm.fit%>%
+                  mutate(xr2=ifelse(host=="wt",10,30))%>%
+                  mutate(yr2=ifelse(host=="wt",0.2,1)),
+  aes(label=round(r.squared,2), x=xr2, y=yr2))+
   scale_shape_manual(values = c(21,24))+
     facet_grid(assay+group~host+phage)+
   theme_cowplot()+
   panel_border()+
-  ylab("viable spore fraction")
+  ylab("viable spore fraction")+
+  labs(caption = "Value in each plot is the R-squared")+
+  theme(plot.caption = element_text(hjust = 0))
+```
+
+Overall the linear model plots seem to capture the trend of the data. I am not sure how much to make of it but the p-values given for the parameters are not very low. This can be seen in the plot below for the slope. I still need to find what this all means about the ability to use slope data. 
+
+```{r plot slope pvals, echo=FALSE}
+d%>%
+  mutate(phage=fct_relevel(phage,c("noPhage","Goe2", "SPO1")))%>%
+  mutate(host=fct_rev(host))%>%
+  filter(host=="wt"|host=="dsspAB")%>%
+  filter(!filter)%>%
+  filter(group!="preliminary")%>%
+  #there are 4 rows with data marked as "TMC" (=Too Many to Count) 
+  # these are coerced into NA
+  mutate(counts=as.numeric(counts ))%>%
+  mutate(no.ml = counts/(dilution*ml.plated))%>%
+  group_by(host,phage,assay, group)%>%
+  mutate(perc = no.ml/no.ml[heat.min==0])%>%
+  ggplot(aes(x=heat.min, y=perc))+
+    geom_abline(data=d.lm.estimates,
+                aes(slope=slope, intercept=intercept,
+                    color=phage, linetype=assay),size=1)+
+    geom_point(aes(color=phage, shape=assay), size=2, fill="white")+
+    geom_text(data=d.lm%>%
+                filter(term=="heat.min")%>%
+                  mutate(xr2=ifelse(host=="wt",15,30))%>%
+                  mutate(yr2=ifelse(host=="wt",0.3,1)),
+  aes(label=round(p.value,3), x=xr2, y=yr2))+
+  scale_shape_manual(values = c(21,24))+
+    facet_grid(assay+group~host+phage)+
+  theme_cowplot()+
+  panel_border()+
+  ylab("viable spore fraction")+
+  labs(caption = "Value in each plot is the p.value of the slope\n(H0 is that slope is 0)")+
+  theme(plot.caption = element_text(hjust = 0))
 ```
 
 
-```{r compare slopes, message=FALSE, echo=FALSE}
+```{r slopes pval, eval=FALSE, include=FALSE}
+  #   d.lm%>%
+  # pivot_wider(id_cols = c(host, phage, assay, group),names_from=term, values_from=p.value)%>%
+  # rename(slope=heat.min, intercept=`(Intercept)` )%>%
+  #   ggplot(aes(x=intercept, y=slope))+
+  #   geom_hline(yintercept = 0.05, size=1, color="grey")+
+  # geom_vline(xintercept = 0.05, size=1, color="grey")+
+  #     geom_point(aes(color=host, shape=phage))+
+  #     # facet_wrap(~term, scales = "free_x")+
+  #   scale_shape_manual(values = c(21,23,24))+
+  #     theme_cowplot()+
+  # scale_y_log10()+
+  # scale_x_log10()+
+  # ggtitle("P values of estimated prameters","Grey lines mark P=0.05")
+```
+
+If we do take the slopes as meaningful we can now ask if the presence of phage has an effect on the response of spore titer to heat treatment. First a look at the data. 
+```{r compare slopes, include=FALSE}
 
 sum.slopes <- 
 d.slopes%>%
@@ -268,13 +325,16 @@ d.slopes%>%
   ggtitle("Spore heat decay","box is mean±SD")
   
 ```
+The effect of host strain is obviously very strong. How about the phage treatment? I test this by applying an ANOVA test (`aov`) to the slope estimate  
+```{r ANOVA slopes,  echo=FALSE}
+  aov(estimate~phage+host+assay+group, d.slopes)$call%>%
+  print()
 
-
-
-```{r ANOVA slopes, message=FALSE, echo=TRUE}
-  aov(estimate~host+phage+assay+group, d.slopes)%>%
+  aov(estimate~phage+host+assay+group, d.slopes)%>%
   summary(.)
 ```
+
+The effect of phage on the slope is not significant, but almost.
 
 ## Endpoint  
 ```{r endpoint plot, include=FALSE}
@@ -312,12 +372,17 @@ d.endpoint%>%
 ```
 
 ```{r ANOVA endpoint, include=FALSE}
-  aov(perc~host+phage+assay+group, d.endpoint)%>%
+  aov(perc~phage+host+assay+group, d.endpoint)$call%>%
+  print()
+
+  aov(perc~phage+host+assay+group, d.endpoint)%>%
   summary(.)
 ```
 
+**Endpoint similar to slopes**  
+
 # viral spore prevalence  
-While not the main hypothesis here we could also ask whther the *ssp* gene of phages and hosts affect the prospects of entrapment. We can adress this by looking at the level of entrapment.
+While not the main hypothesis here, we could also ask whether the *ssp* gene of phages and hosts affect the prospects of entrapment. We can address this by looking at the level of entrapment.
 ```{r viral spore plot, echo=FALSE}
 d%>%
   mutate(phage=fct_relevel(phage,c("noPhage","Goe2", "SPO1")))%>%
@@ -350,7 +415,7 @@ d%>%
 
 A couple of things to notice:  
 1. Total spore titer of infected cultures seems higher when infecting $\Delta sspAB$ host (green + signs).  
-2. In all cases entrampment (% viral spores) is higher when infecting $\Delta sspAB$ host.
+2. In all cases entrapment (% viral spores) is higher when infecting $\Delta sspAB$ host.
 
 
 ```{r ciral spore plot, echo=FALSE}
@@ -406,7 +471,7 @@ d%>%
   scale_shape_manual(values = c(21,3,23))+
   theme_cowplot()+
   panel_border()+
-  ylab("Emtrapmet (% viral spores)")
+  ylab("Entrapment (% viral spores)")
 
 ```
 
