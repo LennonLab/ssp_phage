@@ -348,6 +348,27 @@ d.slopes%>%
 
 Something is a bit off with group 3 it seems.
 
+## GLMM
+```{r}
+
+  d%>%
+  mutate(phage=fct_relevel(phage,c("noPhage","Goe2", "SPO1")))%>%
+  mutate(host=fct_rev(host))%>%
+  filter(host=="wt"|host=="dsspAB")%>%
+  filter(!filter)%>%
+  filter(phage!="SPO1")%>%
+  filter(group!="preliminary")%>%
+    #add a variable of phage yes or no
+  mutate(phage.treat=phage!="noPhage")%>%
+  mutate(counts=as.numeric(counts ))%>%
+  mutate(no.ml = counts/(dilution*ml.plated))%>%
+  group_by(host,phage,assay, group)%>%
+  mutate(suvival.perc = no.ml/no.ml[heat.min==0])%>%
+  ungroup()%>%
+  nlme::lme(suvival.perc ~ phage*host+assay,random=~1|group,data=.)%>%
+  anova()
+  
+```
 
 ## Endpoint  
 Rather than using an estimated slope parameter we can also use the fraction of surviving spores at the end of the heat treatemnt (i.e.  [titer at T~end~]/[titer at T~0~]).  
