@@ -24,6 +24,7 @@ Based on the host function of the homolog and phage entrapment properties, we hy
 
 
 ```{r setup,  echo=FALSE, message=FALSE, warning=FALSE}
+library(renv)
 library(tidyverse, quietly = T)
 library(broom)
 library(cowplot, quietly = T)
@@ -332,7 +333,7 @@ The effect of host strain is obviously very strong. How about the phage treatmen
   summary(.)
 ```
 
-The effect of phage on the slope is not signifi.cant, with a P-value slightly greater then a 0.05 significance threshold. The replication group is lower than the threshold. Which of the groups is responsible for that? I next preform a pairwise t.test for the 3 groups. I do this seperatly for each host. WT host first:  
+The effect of phage on the slope is not significant, with a P-value slightly greater then a 0.05 significance threshold. The replication group is lower than the threshold. Which of the groups is responsible for that? I next preform a pairwise t.test for the 3 groups. I do this seperatly for each host. WT host first:  
 ```{r,  echo=FALSE}
 d.slopes%>%
   filter(host=="wt")%>%
@@ -349,26 +350,61 @@ d.slopes%>%
 Something is a bit off with group 3 it seems.
 
 ## GLMM
-```{r}
 
+compare CFU producing spores 
+```{r}
+library(nlme)
   d%>%
   mutate(phage=fct_relevel(phage,c("noPhage","Goe2", "SPO1")))%>%
   mutate(host=fct_rev(host))%>%
   filter(host=="wt"|host=="dsspAB")%>%
   filter(!filter)%>%
-  filter(phage!="SPO1")%>%
+  # filter(phage!="noPhage")%>%
   filter(group!="preliminary")%>%
+    filter(assay=="CFU")%>%
     #add a variable of phage yes or no
-  mutate(phage.treat=phage!="noPhage")%>%
+  # mutate(phage.treat=phage!="noPhage")%>%
   mutate(counts=as.numeric(counts ))%>%
   mutate(no.ml = counts/(dilution*ml.plated))%>%
   group_by(host,phage,assay, group)%>%
   mutate(suvival.perc = no.ml/no.ml[heat.min==0])%>%
   ungroup()%>%
-  nlme::lme(suvival.perc ~ phage*host+assay,random=~1|group,data=.)%>%
+  mutate(uid=paste(host,phage,assay,group, sep = "."))%>%
+  rename(Time=heat.min)%>%
+  lme(suvival.perc ~ phage*host*Time,random=~1|uid,data=.,
+      correlation = corAR1(form = ~Time|uid))%>%
   anova()
   
 ```
+phage:host borderline significant (P<0.1)
+
+compare spores in phage infected cultures, both types.   
+```{r}
+library(nlme)
+  d%>%
+  mutate(phage=fct_relevel(phage,c("noPhage","Goe2", "SPO1")))%>%
+  mutate(host=fct_rev(host))%>%
+  filter(host=="wt"|host=="dsspAB")%>%
+  filter(!filter)%>%
+  filter(phage!="noPhage")%>%
+  filter(group!="preliminary")%>%
+    # filter(assay=="CFU")%>%
+    #add a variable of phage yes or no
+  # mutate(phage.treat=phage!="noPhage")%>%
+  mutate(counts=as.numeric(counts ))%>%
+  mutate(no.ml = counts/(dilution*ml.plated))%>%
+  group_by(host,phage,assay, group)%>%
+  mutate(suvival.perc = no.ml/no.ml[heat.min==0])%>%
+  ungroup()%>%
+  mutate(uid=paste(host,phage,assay,group, sep = "."))%>%
+  rename(Time=heat.min)%>%
+  lme(suvival.perc ~ phage*host*Time*assay,random=~1|uid,data=.,
+      correlation = corAR1(form = ~Time|uid))%>%
+  anova()
+  
+```
+
+phage:host:Time is significant at 0.05 cutoff. 
 
 ## Endpoint  
 Rather than using an estimated slope parameter we can also use the fraction of surviving spores at the end of the heat treatemnt (i.e.  [titer at T~end~]/[titer at T~0~]).  
