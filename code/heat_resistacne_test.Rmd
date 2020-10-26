@@ -331,6 +331,8 @@ The effect of host strain is obviously very strong. How about the phage treatmen
 
   aov(estimate~phage+host+assay+group, d.slopes)%>%
   summary(.)
+  
+
 ```
 
 The effect of phage on the slope is not significant, with a P-value slightly greater then a 0.05 significance threshold. The replication group is lower than the threshold. Which of the groups is responsible for that? I next preform a pairwise t.test for the 3 groups. I do this seperatly for each host. WT host first:  
@@ -348,6 +350,27 @@ d.slopes%>%
 ```
 
 Something is a bit off with group 3 it seems.
+
+```{r}
+d.slopes%>%
+  # add a variable of phage yes or no
+  mutate(phage.treat=phage!="noPhage")%>%
+  filter(assay=="CFU")%>%
+    mutate(uid=paste(host,phage,assay,group, sep = "."))%>%
+  lme(estimate~phage*host,random=~1|uid, data = .)%>%
+  anova()
+```
+
+
+```{r}
+d.slopes%>%
+  # add a variable of phage yes or no
+  mutate(phage.treat=phage!="noPhage")%>%
+  filter(phage!="noPhage")%>%
+    mutate(uid=paste(host,phage,assay,group, sep = "."))%>%
+  lme(estimate~phage*host*assay,random=~1|uid, data = .)%>%
+  anova()
+```
 
 ## GLMM
 
@@ -583,7 +606,7 @@ d%>%
   filter(heat.min==0)%>%
   mutate(counts=as.numeric(counts))%>%
   mutate(no.ml = counts/(dilution*ml.plated))%>%
-  aov(no.ml~phage+host+assay+group, data = .)%>%
+  aov(no.ml~phage*host*assay+group, data = .)%>%
   summary()
 ```
 
