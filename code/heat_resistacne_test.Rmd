@@ -235,7 +235,7 @@ d%>%
 
 Once again we see that, in the absence of phage, WT spore titer barely changes by heat treatment while the $\Delta sspAB$ strain titer drops by nearly 2 orders of magnitude. In most cases it is not obvious if the infection with phage alters that response. However spores produced in WT cultures infected with Goe2 appear less resistant in 2 of 3 replication groups, seen both in CFU and PFU (upper middle panel).  
 
-```{r replicated sum plot,  echo=FALSE, message=FALSE, warning=FALSE}
+```{r replicated plot nice,  echo=FALSE, message=FALSE, warning=FALSE}
 d.rep <- d%>%
   mutate(phage=fct_relevel(phage,c("noPhage","Goe2", "SPO1")))%>%
   mutate(host=fct_rev(host))%>%
