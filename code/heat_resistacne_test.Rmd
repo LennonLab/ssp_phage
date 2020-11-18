@@ -206,7 +206,7 @@ d%>%
   xlab("Time at 90dC (min)")+
   scale_x_continuous(breaks = c(0,15,30,45))+
   theme(legend.position = "bottom")+
-  ggsave2(here("figures", "noPhage_heatTreat.pdf"),width = 6,height = 6)
+  ggsave2(here("figures", "noPhage_heatTreat.png"),width = 6,height = 6)
 ```
 
 ```{r replicated plot,  echo=FALSE, message=FALSE, warning=FALSE}
@@ -235,6 +235,115 @@ d%>%
 
 Once again we see that, in the absence of phage, WT spore titer barely changes by heat treatment while the $\Delta sspAB$ strain titer drops by nearly 2 orders of magnitude. In most cases it is not obvious if the infection with phage alters that response. However spores produced in WT cultures infected with Goe2 appear less resistant in 2 of 3 replication groups, seen both in CFU and PFU (upper middle panel).  
 
+```{r replicated sum plot,  echo=FALSE, message=FALSE, warning=FALSE}
+d.rep <- d%>%
+  mutate(phage=fct_relevel(phage,c("noPhage","Goe2", "SPO1")))%>%
+  mutate(host=fct_rev(host))%>%
+  filter(host=="wt"|host=="dsspAB")%>%
+  filter(!filter)%>%
+  filter(group!="preliminary")%>%
+  mutate(counts=as.numeric(counts ))%>%
+  mutate(no.ml = counts/(dilution*ml.plated))%>%
+  group_by(host,phage,assay, group)%>%
+  mutate(perc = 100*no.ml/no.ml[heat.min==0])
+
+
+d.rep.inf <- 
+  d.rep%>%
+  filter(phage!="noPhage")%>%
+  mutate(spore=if_else(assay=="CFU",
+         "infected host spore","viral spore"))
+
+
+#duplicate ctrl data to present in both phage panels
+d.rep.ctrl1 <- 
+  d.rep%>%
+  filter(phage=="noPhage")%>%
+  mutate(phage="SPO1")
+
+d.rep.plot <- 
+  d.rep%>%
+  filter(phage=="noPhage")%>%
+  mutate(phage="Goe2")%>%
+  bind_rows(.,d.rep.ctrl1 )%>%
+  mutate(spore="non-infected host spore")%>%
+  #add infected data back in
+  bind_rows(.,d.rep.inf )
+    
+d.rep.plot%>%
+  mutate(spore=fct_relevel(spore,c("non-infected host spore","infected host spore","viral spore")))%>%
+  ggplot(aes(x=heat.min, y=perc, color=spore))+
+    geom_line(aes(group=interaction(host,phage,assay,group,spore)),size=1)+
+    # geom_pointrange(aes(ymax=m+s, ymin=m-s), size=0.8,shape=21, fill="white")+
+  scale_y_log10()+
+  facet_grid(host~phage)+
+  theme_cowplot()+
+  panel_border()+
+  xlab("Time at 90dC (min)")+
+  ylab("Survival percent (log)")+
+  # scale_color_manual(values = c("black", "red", "violet"))+
+  scale_color_viridis_d()+
+  scale_x_continuous(breaks = c(0,15,30,45))+
+  theme(legend.position = "bottom")+
+  ggsave2(here("figures", "replcated_heatTreat_ALL.png"),width = 6,height = 6)
+```
+
+```{r replicated sum plot,  echo=FALSE, message=FALSE, warning=FALSE}
+d.rep <- d%>%
+  mutate(phage=fct_relevel(phage,c("noPhage","Goe2", "SPO1")))%>%
+  mutate(host=fct_rev(host))%>%
+  filter(host=="wt"|host=="dsspAB")%>%
+  filter(!filter)%>%
+  filter(group!="preliminary")%>%
+  mutate(counts=as.numeric(counts ))%>%
+  mutate(no.ml = counts/(dilution*ml.plated))%>%
+  group_by(host,phage,assay, group)%>%
+  mutate(perc = 100*no.ml/no.ml[heat.min==0])
+
+sum.rep <- d.rep%>%
+  filter(!is.na(perc))%>%
+  group_by(host,phage,assay, heat.min)%>%
+  summarise(n=n(),m=mean(perc), s=sd(perc))
+  
+sum.rep.inf <- 
+  sum.rep%>%
+  filter(phage!="noPhage")%>%
+  mutate(spore=if_else(assay=="CFU",
+         "infected host spore","viral spore"))
+
+
+#duplicate ctrl data to present in both phage panels
+sum.rep.ctrl1 <- 
+  sum.rep%>%
+  filter(phage=="noPhage")%>%
+  mutate(phage="SPO1")
+
+sum.rep.plot <- 
+  sum.rep%>%
+  filter(phage=="noPhage")%>%
+  mutate(phage="Goe2")%>%
+  bind_rows(.,sum.rep.ctrl1 )%>%
+  mutate(spore="non-infected host spore")%>%
+  #add infected data back in
+  bind_rows(.,sum.rep.inf )
+    
+sum.rep.plot%>%
+  mutate(spore=fct_relevel(spore,c("non-infected host spore","infected host spore","viral spore")))%>%
+  ggplot(aes(x=heat.min, y=m, color=spore))+
+    geom_line(size=1)+
+    geom_pointrange(aes(ymax=m+s, ymin=m-s), size=0.8,shape=21, fill="white")+
+  scale_y_log10()+
+  facet_grid(host~phage)+
+  theme_cowplot()+
+  panel_border()+
+  xlab("Time at 90dC (min)")+
+  ylab("Survival percent (log)")+
+  # scale_color_manual(values = c("black", "red", "violet"))+
+  scale_color_viridis_d()+
+  scale_x_continuous(breaks = c(0,15,30,45))+
+  theme(legend.position = "bottom")+
+  ggsave2(here("figures", "replcated_heatTreat.png"),width = 6,height = 6)
+```
 
 ## Comparing slopes  
 To be able to compare the heat-resistance of different samples and treatments we next estimate the slope of each curve by fitting a linear model. The estimated parameters of the models are given in the following tables, where each line is a single parameter (see column `term`; `heat.min` is the slope).  
