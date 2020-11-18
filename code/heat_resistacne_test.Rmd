@@ -140,6 +140,38 @@ In all cases measured the free phages were only a small fraction of the total PF
 
 
 Next we present the change in titer during heat treatment, normalized to t=0.  
+
+Looking first at non-infected controls:
+```{r replicated ctrl plot,  echo=FALSE, message=FALSE, warning=FALSE}
+d%>%
+  mutate(phage=fct_relevel(phage,c("noPhage","Goe2", "SPO1")))%>%
+  mutate(host=fct_rev(host))%>%
+  filter(host=="wt"|host=="dsspAB")%>%
+  filter(!filter)%>%
+  filter(group!="preliminary")%>%
+  filter(phage=="noPhage")%>%
+  #there are 4 rows with data marked as "TMC" (=Too Many to Count) 
+  # these are coerced into NA
+  mutate(counts=as.numeric(counts ))%>%
+  mutate(no.ml = counts/(dilution*ml.plated))%>%
+  group_by(host,phage,assay, group)%>%
+  mutate(perc = 100*no.ml/no.ml[heat.min==0])%>%
+  ungroup()%>%
+  mutate(g=interaction(group,host))%>%
+  ggplot(aes(x=heat.min, y=perc))+
+    geom_line(aes(group=g,color=host),size=1)+
+    geom_point(aes(group=g,color=host),shape=21, size=3, fill="white")+
+  coord_cartesian(ylim=c(1,130))+
+  scale_y_log10(breaks=c(100,10,1))+
+  theme_cowplot()+
+  # panel_border()+
+  ylab("Survival percent (log)")+
+  xlab("Time at 90dC (min)")+
+  scale_x_continuous(breaks = c(0,15,30,45))+
+  theme(legend.position = "bottom")+
+  ggsave2(here("figures", "noPhage_heatTreat.pdf"),width = 6,height = 6)
+```
+
 ```{r replicated plot,  echo=FALSE, message=FALSE, warning=FALSE}
 d%>%
   mutate(phage=fct_relevel(phage,c("noPhage","Goe2", "SPO1")))%>%
