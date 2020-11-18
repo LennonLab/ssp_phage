@@ -135,6 +135,43 @@ d%>%
   ggtitle("PFU source of untreated samples (t=0)")
 ```
 
+```{r filter sum plot,  echo=FALSE, message=FALSE, warning=FALSE}
+d.filt <- d%>%
+  mutate(phage=fct_relevel(phage,c("noPhage","Goe2", "SPO1")))%>%
+  mutate(host=fct_rev(host))%>%
+  filter(host=="wt"|host=="dsspAB")%>%
+  filter(group!="preliminary")%>%
+  filter(heat.min==0)%>%
+  filter(assay=="PFU")%>%
+  #there are 4 rows with data marked as "TMC" (=Too Many to Count) 
+  # these are coerced into NA
+  mutate(counts=as.numeric(counts))%>%
+  mutate(no.ml = counts/(dilution*ml.plated))%>%
+  pivot_wider(id_cols = c("host","phage","group"), names_from="filter", values_from="no.ml")%>%
+  rename(free.phage=`TRUE`, total=`FALSE`)%>%
+    mutate(perc.free=100*free.phage/total)
+
+sum.filt <- d.filt%>%
+  filter(!is.na(perc.free))%>%
+  group_by(phage,host)%>%
+  summarise(n=n(),m=mean(perc.free), s=sd(perc.free))
+
+d.filt%>%
+  ggplot(aes(x=host,y= perc.free))+
+  geom_col(data=sum.filt,aes(y=m))+
+  geom_text(data=sum.filt,aes(label=percent(m/100)), y=10)+
+  geom_jitter(width = 0.1, height = 0, shape=21, size=3, fill="white")+
+  coord_cartesian(ylim=c(1e-5,100))+
+  facet_wrap(~phage)+
+  theme_cowplot()+
+  scale_shape_manual(values = c(21,24))+
+  panel_border()+
+  ylab("Free phage (%)")+
+  ggsave2(here("figures", "filter_phage.png"),width = 4,height = 4)
+
+
+```
+
 In all cases measured the free phages were only a small fraction of the total PFU, being 1.1% or lower. Therefore, we can attribute any PFU decline observed in heat treatment to the change in spore viability. For 3 samples (all in group.1) the filtered sample plating was not sufficiently diluted for enumeration.
 
 
