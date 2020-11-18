@@ -391,7 +391,13 @@ d.lm <-
   
   
   d.slopes <- 
-    filter(d.lm,term=="heat.min")
+    filter(d.lm,term=="heat.min")%>%
+    #add spore type 
+    mutate(spore=case_when(assay=="PFU" ~ "viral spore",
+                           phage=="noPhage" ~ "non-infected host spore",
+                           TRUE ~ "infected host spore"))%>%
+    mutate(spore=fct_relevel(spore,c("non-infected host spore","infected host spore","viral spore")))
+    
   
   d.lm
 ```
@@ -486,34 +492,71 @@ If we do take the slopes as meaningful we can now ask if the presence of phage h
 
 sum.slopes <- 
 d.slopes%>%
-  group_by(host, phage,assay)%>%
+  group_by(host, phage,assay,spore)%>%
   summarise(slope=mean(estimate), ymin=slope-sd(estimate), ymax=slope+sd(estimate))%>%
   rename(estimate=slope)
 
 d.slopes%>%
   ggplot(aes(x=phage, y=estimate))+
-  geom_crossbar(data=sum.slopes, aes(ymin=ymin, ymax=ymax, fill=assay),alpha=.3, position = position_dodge(width=.8), width=.5)+
-  geom_point(aes(fill=assay, shape=group),size=3, stroke=1.5,position = position_jitterdodge(jitter.width = 0.01,jitter.height = 0))+
+  geom_crossbar(data=sum.slopes, aes(ymin=ymin, ymax=ymax, fill=spore),alpha=.3, position = position_dodge(width=.8), width=.5)+
+  geom_point(aes(fill=spore, shape=group),size=2, stroke=1,position = position_jitterdodge(jitter.width = 0.01,jitter.height = 0),show.legend = F)+
   scale_shape_manual(values = c(21,23,24))+
   theme_cowplot()+
   panel_border()+
-  facet_wrap(~host,nrow = 1)+
+  facet_wrap(~host,nrow = 1, scales = "free_y")+
+  scale_fill_viridis_d()+
+  guides(fill=guide_legend(nrow=3,byrow=TRUE),
+         shape=FALSE)+
   ylab("decay slope")+
-  ggtitle("Spore heat decay","box is mean±SD")
+  ggtitle("Spore heat decay","box is mean±SD")+
+  theme(legend.position = "bottom")+
+  ggsave2(here("figures", "slope_values.png"),width = 6,height = 6)
+
   
 ```
 The effect of host strain is obviously very strong. How about the phage treatment? I test this by applying an ANOVA test (`aov`) to the slope estimate  
 ```{r ANOVA slopes,  echo=FALSE}
-  aov(estimate~phage+host+assay+group, d.slopes)$call%>%
+#make a unique id for samples of the same initial colony
+d.slopes <- d.slopes%>%
+  mutate(colony=interaction(host,group))
+
+  aov(estimate~phage*host+spore*colony, d.slopes)$call%>%
   print()
 
-  aov(estimate~phage+host+assay+group, d.slopes)%>%
+  aov(estimate~phage*host+spore*colony, d.slopes)%>%
   summary(.)
   
 
 ```
 
-The effect of phage on the slope is not significant, with a P-value slightly greater then a 0.05 significance threshold. The replication group is lower than the threshold. Which of the groups is responsible for that? I next preform a pairwise t.test for the 3 groups. I do this seperatly for each host. WT host first:  
+#post hoc
+
+https://rcompanion.org/handbook/G_09.html
+
+
+```{r}
+m <-d.slopes%>%
+  filter(phage!="SPO1")%>%
+  aov( estimate ~ host*phage*spore+colony,
+       data = .)
+
+print("No phage VS Goe2")
+summary(m)
+```
+
+```{r}
+m <-d.slopes%>%
+  filter(phage!="Goe2")%>%
+  aov( estimate ~ host*phage*spore+colony,
+       data = .)
+
+print("No phage VS SPO1")
+summary(m)
+```
+
+
+
+The effect of phage interacting with on the slope is not significant, with a P-value slightly greater then a 0.05 significance threshold. The replication group is lower than the threshold. Which of the groups is responsible for that? I next preform a pairwise t.test for the 3 groups. I do this seperatly for each host. WT host first:  
 ```{r,  echo=FALSE}
 d.slopes%>%
   filter(host=="wt")%>%
@@ -562,17 +605,30 @@ library(nlme)
   filter(!filter)%>%
   # filter(phage!="noPhage")%>%
   filter(group!="preliminary")%>%
-    filter(assay=="CFU")%>%
-    #add a variable of phage yes or no
-  # mutate(phage.treat=phage!="noPhage")%>%
+    # filter(assay=="CFU")%>%
+    #add spore type 
+    mutate(spore=case_when(assay=="PFU" ~ "viral spore",
+                           phage=="noPhage" ~ "non-infected host spore",
+                           TRUE ~ "infected host spore"))%>%
+    mutate(spore=fct_relevel(spore,c("non-infected host spore","infected host spore","viral spore")))%>%
   mutate(counts=as.numeric(counts ))%>%
   mutate(no.ml = counts/(dilution*ml.plated))%>%
-  group_by(host,phage,assay, group)%>%
+  group_by(host,phage,spore, group)%>%
   mutate(suvival.perc = no.ml/no.ml[heat.min==0])%>%
   ungroup()%>%
-  mutate(uid=paste(host,phage,assay,group, sep = "."))%>%
-  rename(Time=heat.min)%>%
-  lme(suvival.perc ~ phage*host*Time,random=~1|uid,data=.,
+  mutate(uid=paste(host,phage,spore,group, sep = "."))%>%
+  rename(Time=heat.min)->   d.glm
+  
+  
+  d.glm%>%
+    filter(phage!="SPO1")%>%
+    lme(suvival.perc ~ phage*host*Time,random=~1|uid,data=.,
+      correlation = corAR1(form = ~Time|uid))%>%
+  anova()
+  
+    d.glm%>%
+    filter(phage!="Goe2")%>%
+    lme(suvival.perc ~ phage*host*Time,random=~1|uid,data=.,
       correlation = corAR1(form = ~Time|uid))%>%
   anova()
   
@@ -690,7 +746,7 @@ A couple of things to notice:
 1. Total spore titer of infected cultures seems higher when infecting $\Delta sspAB$ host (green + signs).  
 
 ```{r viral spore plot, message=FALSE, warning=FALSE,echo=FALSE}
-d%>%
+d.total <- d%>%
   mutate(phage=fct_relevel(phage,c("noPhage","Goe2", "SPO1")))%>%
   mutate(host=fct_rev(host))%>%
   filter(host=="wt"|host=="dsspAB")%>%
@@ -703,22 +759,43 @@ d%>%
   rename(viral.spore=PFU, host.spore=CFU)%>%
   mutate(total=viral.spore+host.spore)%>%
     mutate(perc.viral=percent(viral.spore/total))%>%
-  mutate(total=ifelse(is.na(total),host.spore,total ))%>%
-  ggplot(aes(x=host, y=total))+
-    geom_line(aes(group=group, color=group),alpha=0.5,size=1)+
-  geom_point(aes(color=group, shape=group),size=3, fill="grey",alpha=0.5, stroke=2)+
-  scale_y_log10(limits=c(1e8,3e9))+
-  facet_grid(.~phage)+
+  mutate(total=ifelse(is.na(total),host.spore,total ))
+
+sum.total <- 
+  d.total%>%
+  group_by(host,phage)%>%
+  summarise(m=mean(total), s=sd(total), n=n())
+
+  d.total %>%
+    ggplot(aes(x=host, y=total))+
+    geom_crossbar(data=sum.total, aes(y=m,ymin=m-s, ymax=m+s),alpha=.3, position = position_dodge(width=.8), width=.5)+
+  geom_point(shape=21,size=2, fill="white", stroke=1, position = position_jitter(width=0.2), show.legend=F)+
+  scale_y_log10(limits=c(1e7,3e9))+
+  facet_wrap(~phage)+
   scale_shape_manual(values = c(21,23,24))+
   theme_cowplot()+
   panel_border()+
-  ylab("PFU/ml")+
-  ggtitle("Total Spore Titers (CFU+PFU)")
+  ylab("spore/ml")+
+  ggtitle("Total spores st T=0","box is mean±SD")+
+  theme(legend.position = "bottom")+
+    ggsave2(here("figures","T0_total_spores.png"),width = 6, height = 6)
+
+  # ggplot(aes(x=host, y=total))+
+  #   geom_line(aes(group=group, color=group),alpha=0.5,size=1)+
+  # geom_point(aes(color=group, shape=group),size=3, fill="grey",alpha=0.5, stroke=2)+
+  # scale_y_log10(limits=c(1e8,3e9))+
+  # facet_grid(.~phage)+
+  # scale_shape_manual(values = c(21,23,24))+
+  # theme_cowplot()+
+  # panel_border()+
+  # ylab("PFU/ml")+
+  # ggtitle("Total Spore Titers (CFU+PFU)")
 
 ```
 
 This appears to be driven mostly by additional viral spores:  
 ```{r response spore plot, message=FALSE, warning=FALSE,echo=FALSE}
+d.spore <- 
 d%>%
   mutate(phage=fct_relevel(phage,c("noPhage","Goe2", "SPO1")))%>%
   mutate(host=fct_rev(host))%>%
@@ -728,21 +805,44 @@ d%>%
   filter(heat.min==0)%>%
   mutate(counts=as.numeric(counts))%>%
   mutate(no.ml = counts/(dilution*ml.plated))%>%
-  ggplot(aes(x=host, y=no.ml))+
-    geom_line(aes(group=group, color=group),alpha=0.5,size=1)+
-  geom_point(aes(color=group, shape=group),size=3, fill="grey",alpha=0.5, stroke=2)+
+   #add spore type 
+    mutate(spore=case_when(assay=="PFU" ~ "viral spore",
+                           phage=="noPhage" ~ "non-infected host spore",
+                           TRUE ~ "infected host spore"))%>%
+    mutate(spore=fct_relevel(spore,c("non-infected host spore","infected host spore","viral spore")))
+
+sum.spore <- 
+  d.spore%>%
+  group_by(host,phage,assay,spore)%>%
+  summarise(m=mean(no.ml), s=sd(no.ml), n=n())
+  
+  
+  d.spore %>%
+    ggplot(aes(x=host, y=no.ml))+
+    geom_crossbar(data=sum.spore, aes(y=m,ymin=m-s, ymax=m+s, fill=spore),alpha=.3, position = position_dodge(width=.8), width=.5)+
+    # geom_point(data = sum.spore, aes(x=host,y=m), shape=4)+
+    # geom_line(aes(group=group, color=group),alpha=0.5,size=1)+
+  geom_point(aes(color=spore),shape=21,size=2, fill="white", stroke=1, position = position_jitter(width=0.2), show.legend=F)+
   scale_y_log10(limits=c(1e7,3e9))+
   facet_grid(assay~phage)+
   scale_shape_manual(values = c(21,23,24))+
   theme_cowplot()+
-  panel_border()
+  panel_border()+
+    scale_fill_viridis_d()+
+    scale_color_viridis_d()+
+    guides(fill=guide_legend(nrow=3,byrow=TRUE),
+         shape=FALSE)+
+  ylab("spore/ml")+
+  ggtitle("Spores st T=0","box is mean±SD")+
+  theme(legend.position = "bottom")+
+    ggsave2(here("figures","T0_spores.png"),width = 6, height = 6)
 
 ```
 
 Which taken together leads to the second point I noticed in the initial plot of this section:  
 2. In all cases entrapment (% viral spores) is higher when infecting $\Delta sspAB$ host.  
 ```{r percent viral spore plot,  message=FALSE, warning=FALSE,echo=FALSE}
-d%>%
+d.Vspore <- d%>%
   mutate(phage=fct_relevel(phage,c("noPhage","Goe2", "SPO1")))%>%
   mutate(host=fct_rev(host))%>%
   filter(host=="wt"|host=="dsspAB")%>%
@@ -757,7 +857,30 @@ d%>%
   rename(viral.spore=PFU, host.spore=CFU)%>%
   mutate(total=viral.spore+host.spore)%>%
     mutate(perc.viral= viral.spore*100/total)%>%
-  filter(phage!="noPhage")%>%
+  filter(phage!="noPhage")
+
+sum.Vspore <- 
+  d.Vspore%>%
+  group_by(host,phage)%>%
+  summarise(m=mean(perc.viral), s=sd(perc.viral), n=n())
+  
+  
+  d.Vspore %>%
+    ggplot(aes(x=host, y=perc.viral))+
+    geom_crossbar(data=sum.Vspore, aes(y=m,ymin=m-s, ymax=m+s), position = position_dodge(width=.8), width=.5)+
+    # geom_point(data = sum.spore, aes(x=host,y=m), shape=4)+
+    # geom_line(aes(group=group, color=group),alpha=0.5,size=1)+
+  geom_point(shape=21,size=2, fill="white", stroke=1, position = position_jitter(width=0.2), show.legend=F)+
+  facet_grid(~phage)+
+  scale_shape_manual(values = c(21,23,24))+
+  theme_cowplot()+
+  panel_border()+
+  ylab("spore/ml")+
+  ggtitle("Spores st T=0","box is mean±SD")+
+  theme(legend.position = "bottom")+
+    ggsave2(here("figures","T0_Perc_Vspores.png"),width = 6, height = 6)
+
+
   ggplot(aes(x=host,y=perc.viral ))+
   geom_line(aes(group=group), size=1)+
   geom_point(size=3, fill="grey",alpha=0.5, stroke=2)+
@@ -769,7 +892,19 @@ d%>%
 
 ```
 
-_I note that in the last few plots I drew lines between replication groups across host strains. I want to point out that these groups were only assayed together (plating) and are not truely coupled._
+#t-test
+
+```{r}
+d.Vspore%>%
+  filter(phage=="Goe2")%>%
+  t.test(perc.viral~host,data = .)
+```
+
+```{r}
+d.Vspore%>%
+  filter(phage=="SPO1")%>%
+  t.test(perc.viral~host,data = .)
+```
 
 # Are host SASPs defending against entrapment?? how does this relate to homolog presence in phage?
 
@@ -781,6 +916,7 @@ d%>%
   filter(host=="wt"|host=="dsspAB")%>%
   filter(group!="preliminary")%>%
   filter(!filter)%>%
+  
   filter(heat.min==0)%>%
   mutate(counts=as.numeric(counts))%>%
   mutate(no.ml = counts/(dilution*ml.plated))%>%
