@@ -24,6 +24,7 @@ Based on the host function of the homolog and phage entrapment properties, we hy
 
 
 ```{r setup,  echo=FALSE, message=FALSE, warning=FALSE}
+library(renv)
 library(tidyverse, quietly = T)
 library(broom)
 library(cowplot, quietly = T)
@@ -134,11 +135,80 @@ d%>%
   ggtitle("PFU source of untreated samples (t=0)")
 ```
 
+```{r filter sum plot,  echo=FALSE, message=FALSE, warning=FALSE}
+d.filt <- d%>%
+  mutate(phage=fct_relevel(phage,c("noPhage","Goe2", "SPO1")))%>%
+  mutate(host=fct_rev(host))%>%
+  filter(host=="wt"|host=="dsspAB")%>%
+  filter(group!="preliminary")%>%
+  filter(heat.min==0)%>%
+  filter(assay=="PFU")%>%
+  #there are 4 rows with data marked as "TMC" (=Too Many to Count) 
+  # these are coerced into NA
+  mutate(counts=as.numeric(counts))%>%
+  mutate(no.ml = counts/(dilution*ml.plated))%>%
+  pivot_wider(id_cols = c("host","phage","group"), names_from="filter", values_from="no.ml")%>%
+  rename(free.phage=`TRUE`, total=`FALSE`)%>%
+    mutate(perc.free=100*free.phage/total)
+
+sum.filt <- d.filt%>%
+  filter(!is.na(perc.free))%>%
+  group_by(phage,host)%>%
+  summarise(n=n(),m=mean(perc.free), s=sd(perc.free))
+
+d.filt%>%
+  ggplot(aes(x=host,y= perc.free))+
+  geom_col(data=sum.filt,aes(y=m))+
+  geom_text(data=sum.filt,aes(label=percent(m/100)), y=10)+
+  geom_jitter(width = 0.1, height = 0, shape=21, size=3, fill="white")+
+  coord_cartesian(ylim=c(1e-5,100))+
+  facet_wrap(~phage)+
+  theme_cowplot()+
+  scale_shape_manual(values = c(21,24))+
+  panel_border()+
+  ylab("Free phage (%)")+
+  ggsave2(here("figures", "filter_phage.png"),width = 4,height = 4)
+
+
+```
+
 In all cases measured the free phages were only a small fraction of the total PFU, being 1.1% or lower. Therefore, we can attribute any PFU decline observed in heat treatment to the change in spore viability. For 3 samples (all in group.1) the filtered sample plating was not sufficiently diluted for enumeration.
 
 
 
 Next we present the change in titer during heat treatment, normalized to t=0.  
+
+Looking first at non-infected controls:
+```{r replicated ctrl plot,  echo=FALSE, message=FALSE, warning=FALSE}
+d%>%
+  mutate(phage=fct_relevel(phage,c("noPhage","Goe2", "SPO1")))%>%
+  mutate(host=fct_rev(host))%>%
+  filter(host=="wt"|host=="dsspAB")%>%
+  filter(!filter)%>%
+  filter(group!="preliminary")%>%
+  filter(phage=="noPhage")%>%
+  #there are 4 rows with data marked as "TMC" (=Too Many to Count) 
+  # these are coerced into NA
+  mutate(counts=as.numeric(counts ))%>%
+  mutate(no.ml = counts/(dilution*ml.plated))%>%
+  group_by(host,phage,assay, group)%>%
+  mutate(perc = 100*no.ml/no.ml[heat.min==0])%>%
+  ungroup()%>%
+  mutate(g=interaction(group,host))%>%
+  ggplot(aes(x=heat.min, y=perc))+
+    geom_line(aes(group=g,color=host),size=1)+
+    geom_point(aes(group=g,color=host),shape=21, size=3, fill="white")+
+  coord_cartesian(ylim=c(1,130))+
+  scale_y_log10(breaks=c(100,10,1))+
+  theme_cowplot()+
+  # panel_border()+
+  ylab("Survival percent (log)")+
+  xlab("Time at 90dC (min)")+
+  scale_x_continuous(breaks = c(0,15,30,45))+
+  theme(legend.position = "bottom")+
+  ggsave2(here("figures", "noPhage_heatTreat.png"),width = 6,height = 6)
+```
+
 ```{r replicated plot,  echo=FALSE, message=FALSE, warning=FALSE}
 d%>%
   mutate(phage=fct_relevel(phage,c("noPhage","Goe2", "SPO1")))%>%
@@ -165,6 +235,115 @@ d%>%
 
 Once again we see that, in the absence of phage, WT spore titer barely changes by heat treatment while the $\Delta sspAB$ strain titer drops by nearly 2 orders of magnitude. In most cases it is not obvious if the infection with phage alters that response. However spores produced in WT cultures infected with Goe2 appear less resistant in 2 of 3 replication groups, seen both in CFU and PFU (upper middle panel).  
 
+```{r replicated plot nice,  echo=FALSE, message=FALSE, warning=FALSE}
+d.rep <- d%>%
+  mutate(phage=fct_relevel(phage,c("noPhage","Goe2", "SPO1")))%>%
+  mutate(host=fct_rev(host))%>%
+  filter(host=="wt"|host=="dsspAB")%>%
+  filter(!filter)%>%
+  filter(group!="preliminary")%>%
+  mutate(counts=as.numeric(counts ))%>%
+  mutate(no.ml = counts/(dilution*ml.plated))%>%
+  group_by(host,phage,assay, group)%>%
+  mutate(perc = 100*no.ml/no.ml[heat.min==0])
+
+
+d.rep.inf <- 
+  d.rep%>%
+  filter(phage!="noPhage")%>%
+  mutate(spore=if_else(assay=="CFU",
+         "infected host spore","viral spore"))
+
+
+#duplicate ctrl data to present in both phage panels
+d.rep.ctrl1 <- 
+  d.rep%>%
+  filter(phage=="noPhage")%>%
+  mutate(phage="SPO1")
+
+d.rep.plot <- 
+  d.rep%>%
+  filter(phage=="noPhage")%>%
+  mutate(phage="Goe2")%>%
+  bind_rows(.,d.rep.ctrl1 )%>%
+  mutate(spore="non-infected host spore")%>%
+  #add infected data back in
+  bind_rows(.,d.rep.inf )
+    
+d.rep.plot%>%
+  mutate(spore=fct_relevel(spore,c("non-infected host spore","infected host spore","viral spore")))%>%
+  ggplot(aes(x=heat.min, y=perc, color=spore))+
+    geom_line(aes(group=interaction(host,phage,assay,group,spore)),size=1)+
+    # geom_pointrange(aes(ymax=m+s, ymin=m-s), size=0.8,shape=21, fill="white")+
+  scale_y_log10()+
+  facet_grid(host~phage)+
+  theme_cowplot()+
+  panel_border()+
+  xlab("Time at 90dC (min)")+
+  ylab("Survival percent (log)")+
+  # scale_color_manual(values = c("black", "red", "violet"))+
+  scale_color_viridis_d()+
+  scale_x_continuous(breaks = c(0,15,30,45))+
+  theme(legend.position = "bottom")+
+  ggsave2(here("figures", "replcated_heatTreat_ALL.png"),width = 6,height = 6)
+```
+
+```{r replicated sum plot,  echo=FALSE, message=FALSE, warning=FALSE}
+d.rep <- d%>%
+  mutate(phage=fct_relevel(phage,c("noPhage","Goe2", "SPO1")))%>%
+  mutate(host=fct_rev(host))%>%
+  filter(host=="wt"|host=="dsspAB")%>%
+  filter(!filter)%>%
+  filter(group!="preliminary")%>%
+  mutate(counts=as.numeric(counts ))%>%
+  mutate(no.ml = counts/(dilution*ml.plated))%>%
+  group_by(host,phage,assay, group)%>%
+  mutate(perc = 100*no.ml/no.ml[heat.min==0])
+
+sum.rep <- d.rep%>%
+  filter(!is.na(perc))%>%
+  group_by(host,phage,assay, heat.min)%>%
+  summarise(n=n(),m=mean(perc), s=sd(perc))
+  
+sum.rep.inf <- 
+  sum.rep%>%
+  filter(phage!="noPhage")%>%
+  mutate(spore=if_else(assay=="CFU",
+         "infected host spore","viral spore"))
+
+
+#duplicate ctrl data to present in both phage panels
+sum.rep.ctrl1 <- 
+  sum.rep%>%
+  filter(phage=="noPhage")%>%
+  mutate(phage="SPO1")
+
+sum.rep.plot <- 
+  sum.rep%>%
+  filter(phage=="noPhage")%>%
+  mutate(phage="Goe2")%>%
+  bind_rows(.,sum.rep.ctrl1 )%>%
+  mutate(spore="non-infected host spore")%>%
+  #add infected data back in
+  bind_rows(.,sum.rep.inf )
+    
+sum.rep.plot%>%
+  mutate(spore=fct_relevel(spore,c("non-infected host spore","infected host spore","viral spore")))%>%
+  ggplot(aes(x=heat.min, y=m, color=spore))+
+    geom_line(size=1)+
+    geom_pointrange(aes(ymax=m+s, ymin=m-s), size=0.8,shape=21, fill="white")+
+  scale_y_log10()+
+  facet_grid(host~phage)+
+  theme_cowplot()+
+  panel_border()+
+  xlab("Time at 90dC (min)")+
+  ylab("Survival percent (log)")+
+  # scale_color_manual(values = c("black", "red", "violet"))+
+  scale_color_viridis_d()+
+  scale_x_continuous(breaks = c(0,15,30,45))+
+  theme(legend.position = "bottom")+
+  ggsave2(here("figures", "replcated_heatTreat.png"),width = 6,height = 6)
+```
 
 ## Comparing slopes  
 To be able to compare the heat-resistance of different samples and treatments we next estimate the slope of each curve by fitting a linear model. The estimated parameters of the models are given in the following tables, where each line is a single parameter (see column `term`; `heat.min` is the slope).  
@@ -212,7 +391,13 @@ d.lm <-
   
   
   d.slopes <- 
-    filter(d.lm,term=="heat.min")
+    filter(d.lm,term=="heat.min")%>%
+    #add spore type 
+    mutate(spore=case_when(assay=="PFU" ~ "viral spore",
+                           phage=="noPhage" ~ "non-infected host spore",
+                           TRUE ~ "infected host spore"))%>%
+    mutate(spore=fct_relevel(spore,c("non-infected host spore","infected host spore","viral spore")))
+    
   
   d.lm
 ```
@@ -307,51 +492,128 @@ If we do take the slopes as meaningful we can now ask if the presence of phage h
 
 sum.slopes <- 
 d.slopes%>%
-  group_by(host, phage,assay)%>%
+  group_by(host, phage,assay,spore)%>%
   summarise(slope=mean(estimate), ymin=slope-sd(estimate), ymax=slope+sd(estimate))%>%
   rename(estimate=slope)
 
 d.slopes%>%
   ggplot(aes(x=phage, y=estimate))+
-  geom_crossbar(data=sum.slopes, aes(ymin=ymin, ymax=ymax, fill=assay),alpha=.3, position = position_dodge(width=.8), width=.5)+
-  geom_point(aes(fill=assay, shape=group),size=3, stroke=1.5,position = position_jitterdodge(jitter.width = 0.01,jitter.height = 0))+
+  geom_crossbar(data=sum.slopes, aes(ymin=ymin, ymax=ymax, fill=spore),alpha=.3, position = position_dodge(width=.8), width=.5)+
+  geom_point(aes(fill=spore, shape=group),size=2, stroke=1,position = position_jitterdodge(jitter.width = 0.01,jitter.height = 0),show.legend = F)+
   scale_shape_manual(values = c(21,23,24))+
   theme_cowplot()+
   panel_border()+
-  facet_wrap(~host,nrow = 1)+
+  facet_wrap(~host,nrow = 1, scales = "free_y")+
+  scale_fill_viridis_d()+
+  guides(fill=guide_legend(nrow=3,byrow=TRUE),
+         shape=FALSE)+
   ylab("decay slope")+
-  ggtitle("Spore heat decay","box is mean±SD")
+  ggtitle("Spore heat decay","box is mean±SD")+
+  theme(legend.position = "bottom")+
+  ggsave2(here("figures", "slope_values.png"),width = 6,height = 6)
+
   
 ```
-The effect of host strain is obviously very strong. How about the phage treatment? I test this by applying an ANOVA test (`aov`) to the slope estimate  
+The effect of host strain is obviously very strong (plots above are with different scales). How about the phage treatment? I test this by applying an ANOVA test (`aov`) to the slope estimate  
 ```{r ANOVA slopes,  echo=FALSE}
-  aov(estimate~phage+host+assay+group, d.slopes)$call%>%
+#make a unique id for samples of the same initial colony
+d.slopes <- d.slopes%>%
+  mutate(colony=interaction(host,group))
+
+  aov(estimate~phage*host+spore*colony, d.slopes)$call%>%
   print()
 
-  aov(estimate~phage+host+assay+group, d.slopes)%>%
+  aov(estimate~phage*host+spore*colony, d.slopes)%>%
   summary(.)
+  
+
 ```
 
-The effect of phage on the slope is not signifi.cant, with a P-value slightly greater then a 0.05 significance threshold. The replication group is lower than the threshold. Which of the groups is responsible for that? I next preform a pairwise t.test for the 3 groups. I do this seperatly for each host. WT host first:  
+
+**Testing separatly for each phage vs non-infected controls: **
+
+```{r}
+m.goe2 <-d.slopes%>%
+  filter(phage!="SPO1")%>%
+  aov( estimate ~ host*phage*spore+colony,
+       data = .)
+
+print("No phage VS Goe2")
+summary(m.goe2)
+```
+
+For Goe2 there is a significant interaction of Phage X Host!
+
+
+```{r}
+m.spo1 <-d.slopes%>%
+  filter(phage!="Goe2")%>%
+  aov( estimate ~ host*phage*spore+colony,
+       data = .)
+
+print("No phage VS SPO1")
+summary(m.spo1)
+```
+
+For SPO1 only the main effect of the host is significant.
+
+### focusing on Goe2 hostXphage
+
+```{r goe2 anova}
+sum.slopes <- 
+d.slopes%>%
+    filter(phage!="SPO1")%>%
+  group_by(host, phage)%>%
+  summarise(slope=mean(estimate), ymin=slope-sd(estimate), ymax=slope+sd(estimate))%>%
+  rename(estimate=slope)
+
+d.slopes%>%
+  filter(phage!="SPO1")%>%
+  ggplot(aes(x=interaction(host,phage), y=estimate))+
+  geom_crossbar(data=sum.slopes, aes(ymin=ymin, ymax=ymax),alpha=.3, position = position_dodge(width=.8), width=.5)+
+  geom_point(aes( shape=group),size=2, stroke=1,position = position_jitterdodge(jitter.width = 0.01,jitter.height = 0),show.legend = F)+
+  scale_shape_manual(values = c(21,23,24))+
+  theme_cowplot()+
+  panel_border()+
+    # scale_fill_viridis_d()+
+  # guides(fill=guide_legend(nrow=3,byrow=TRUE),
+  #        shape=FALSE)+
+  ylab("decay slope")+
+  ggtitle("Spore heat decay","box is mean±SD")+
+  theme(legend.position = "bottom")+
+coord_flip()
+  # ggsave2(here("figures", "slope_values.png"),width = 6,height = 6)
+```
+
+Looking at these plots I would guess that the phageXhost interaction that is driving the significant outcome is the difference between non-infected wt spores and the $\Delta sspAB$ spore, both infected, and non-infected. Next we will test that by Tukey's post hoc.
+
+```{r, message=F}
+tuk <- TukeyHSD(m.goe2,which = c("host:phage"))
+
+tuk
+# I wrote a function to nicely plot the results of this test
+source(here("code","functions", "plot_TukeyHSD.R"))
+
+plot_TukeyHSD (tuk, back = "plot")
+
+```
+
+
+
+And t.test for the WT host:  
 ```{r,  echo=FALSE}
 d.slopes%>%
   filter(host=="wt")%>%
-{pairwise.t.test(.$estimate,.$group, p.adjust.method = "BH")}
+{pairwise.t.test(.$estimate,.$phage, p.adjust.method = "BH")}
 ```
 
-And t.test for the $\Delta sspAB$ host:  
-```{r,  echo=FALSE}
-d.slopes%>%
-  filter(host!="wt")%>%
-{pairwise.t.test(.$estimate,.$group, p.adjust.method = "BH")}
-```
-
-Something is a bit off with group 3 it seems.
-
+ 
 
 ## Endpoint  
 Rather than using an estimated slope parameter we can also use the fraction of surviving spores at the end of the heat treatemnt (i.e.  [titer at T~end~]/[titer at T~0~]).  
 ```{r endpoint plot,  echo=FALSE, message=FALSE, warning=FALSE}
+
+
 d.endpoint <-
 d%>%
   mutate(phage=fct_relevel(phage,c("noPhage","Goe2", "SPO1")))%>%
@@ -362,36 +624,58 @@ d%>%
   mutate(counts=as.numeric(counts ))%>%
   mutate(no.ml = counts/(dilution*ml.plated))%>%
   group_by(host,phage,assay, group)%>%
-  mutate(perc = no.ml/no.ml[heat.min==0])%>%
-  filter(heat.min==45)
+  mutate(perc = 100*no.ml/no.ml[heat.min==0])%>%
+  filter(heat.min==45)%>%
+     #add spore type 
+    mutate(spore=case_when(assay=="PFU" ~ "viral spore",
+                           phage=="noPhage" ~ "non-infected host spore",
+                           TRUE ~ "infected host spore"))%>%
+    mutate(spore=fct_relevel(spore,c("non-infected host spore","infected host spore","viral spore")))%>%
+  mutate(colony=interaction(host,group))
 
 sum.endpoint <- 
 d.endpoint%>%
-  group_by(host, phage,assay)%>%
+  group_by(host, phage,spore)%>%
   summarise(mean=mean(perc), ymin=mean-sd(perc), ymax=mean+sd(perc))
 
 d.endpoint%>%
   ggplot(aes(x=phage, y=perc))+
-  geom_crossbar(data=sum.endpoint, aes(y=mean,ymin=ymin, ymax=ymax, fill=assay),alpha=.3, position = position_dodge(width=.8), width=.5)+
-  geom_point(aes(fill=assay, shape=group),size=3,stroke=1.5,
-             position = position_jitterdodge(jitter.width = 0.2,
-                                            jitter.height = 0))+
+  geom_crossbar(data=sum.endpoint, aes(y=mean,ymin=ymin, ymax=ymax, fill=spore),alpha=.3, position = position_dodge(width=.8), width=.5)+
+  geom_point(aes(fill=spore, shape=group),size=2, stroke=1,position = position_jitterdodge(jitter.width = 0.01,jitter.height = 0),show.legend = F)+
   scale_shape_manual(values = c(21,23,24))+
   theme_cowplot()+
   panel_border()+
-  facet_wrap(~host,nrow = 1)+
+  facet_wrap(~host,nrow = 1, scales = "free_y")+
+  scale_fill_viridis_d()+
+  guides(fill=guide_legend(nrow=3,byrow=TRUE),
+         shape=FALSE)+
   ylab("% spores at 45min")+
-  ggtitle("Spore survival (90dC, 45min)","box is mean±SD")
+  ggtitle("Spore survival (90dC, 45min)","box is mean±SD")+
+  theme(legend.position = "bottom")
+  ggsave2(here("figures", "endpoint.png"),width = 6,height = 6)
+
 
 ```
 
 And like above we can run ANOVA on surviving fraction at end point:  
-```{r ANOVA endpoint,  echo=FALSE, message=FALSE, warning=FALSE}
-  aov(perc~phage+host+assay+group, d.endpoint)$call%>%
-  print()
+```{r ANOVA endpoint Goe2,  echo=FALSE, message=FALSE, warning=FALSE}
+ mm <-  
+  d.endpoint%>%
+  filter(phage!="SPO1")%>%
+  aov(perc~phage*host*spore+colony, .)
+  
+print("No phage VS Goe2")
+  summary(mm)
+```
 
-  aov(perc~phage+host+assay+group, d.endpoint)%>%
-  summary(.)
+```{r ANOVA endpoint SPO1,  echo=FALSE, message=FALSE, warning=FALSE}
+ mm <-  
+  d.endpoint%>%
+  filter(phage!="Goe2")%>%
+  aov(perc~phage*host*spore+colony, .)
+  
+print("No phage VS SPO1")
+  summary(mm)
 ```
 
 **Endpoint similar to slopes**  
@@ -432,7 +716,7 @@ A couple of things to notice:
 1. Total spore titer of infected cultures seems higher when infecting $\Delta sspAB$ host (green + signs).  
 
 ```{r viral spore plot, message=FALSE, warning=FALSE,echo=FALSE}
-d%>%
+d.total <- d%>%
   mutate(phage=fct_relevel(phage,c("noPhage","Goe2", "SPO1")))%>%
   mutate(host=fct_rev(host))%>%
   filter(host=="wt"|host=="dsspAB")%>%
@@ -445,22 +729,43 @@ d%>%
   rename(viral.spore=PFU, host.spore=CFU)%>%
   mutate(total=viral.spore+host.spore)%>%
     mutate(perc.viral=percent(viral.spore/total))%>%
-  mutate(total=ifelse(is.na(total),host.spore,total ))%>%
-  ggplot(aes(x=host, y=total))+
-    geom_line(aes(group=group, color=group),alpha=0.5,size=1)+
-  geom_point(aes(color=group, shape=group),size=3, fill="grey",alpha=0.5, stroke=2)+
-  scale_y_log10(limits=c(1e8,3e9))+
-  facet_grid(.~phage)+
+  mutate(total=ifelse(is.na(total),host.spore,total ))
+
+sum.total <- 
+  d.total%>%
+  group_by(host,phage)%>%
+  summarise(m=mean(total), s=sd(total), n=n())
+
+  d.total %>%
+    ggplot(aes(x=host, y=total))+
+    geom_crossbar(data=sum.total, aes(y=m,ymin=m-s, ymax=m+s),alpha=.3, position = position_dodge(width=.8), width=.5)+
+  geom_point(shape=21,size=2, fill="white", stroke=1, position = position_jitter(width=0.2), show.legend=F)+
+  scale_y_log10(limits=c(1e7,3e9))+
+  facet_wrap(~phage)+
   scale_shape_manual(values = c(21,23,24))+
   theme_cowplot()+
   panel_border()+
-  ylab("PFU/ml")+
-  ggtitle("Total Spore Titers (CFU+PFU)")
+  ylab("spore/ml")+
+  ggtitle("Total spores st T=0","box is mean±SD")+
+  theme(legend.position = "bottom")+
+    ggsave2(here("figures","T0_total_spores.png"),width = 6, height = 6)
+
+  # ggplot(aes(x=host, y=total))+
+  #   geom_line(aes(group=group, color=group),alpha=0.5,size=1)+
+  # geom_point(aes(color=group, shape=group),size=3, fill="grey",alpha=0.5, stroke=2)+
+  # scale_y_log10(limits=c(1e8,3e9))+
+  # facet_grid(.~phage)+
+  # scale_shape_manual(values = c(21,23,24))+
+  # theme_cowplot()+
+  # panel_border()+
+  # ylab("PFU/ml")+
+  # ggtitle("Total Spore Titers (CFU+PFU)")
 
 ```
 
 This appears to be driven mostly by additional viral spores:  
 ```{r response spore plot, message=FALSE, warning=FALSE,echo=FALSE}
+d.spore <- 
 d%>%
   mutate(phage=fct_relevel(phage,c("noPhage","Goe2", "SPO1")))%>%
   mutate(host=fct_rev(host))%>%
@@ -470,21 +775,44 @@ d%>%
   filter(heat.min==0)%>%
   mutate(counts=as.numeric(counts))%>%
   mutate(no.ml = counts/(dilution*ml.plated))%>%
-  ggplot(aes(x=host, y=no.ml))+
-    geom_line(aes(group=group, color=group),alpha=0.5,size=1)+
-  geom_point(aes(color=group, shape=group),size=3, fill="grey",alpha=0.5, stroke=2)+
+   #add spore type 
+    mutate(spore=case_when(assay=="PFU" ~ "viral spore",
+                           phage=="noPhage" ~ "non-infected host spore",
+                           TRUE ~ "infected host spore"))%>%
+    mutate(spore=fct_relevel(spore,c("non-infected host spore","infected host spore","viral spore")))
+
+sum.spore <- 
+  d.spore%>%
+  group_by(host,phage,assay,spore)%>%
+  summarise(m=mean(no.ml), s=sd(no.ml), n=n())
+  
+  
+  d.spore %>%
+    ggplot(aes(x=host, y=no.ml))+
+    geom_crossbar(data=sum.spore, aes(y=m,ymin=m-s, ymax=m+s, fill=spore),alpha=.3, position = position_dodge(width=.8), width=.5)+
+    # geom_point(data = sum.spore, aes(x=host,y=m), shape=4)+
+    # geom_line(aes(group=group, color=group),alpha=0.5,size=1)+
+  geom_point(aes(color=spore),shape=21,size=2, fill="white", stroke=1, position = position_jitter(width=0.2), show.legend=F)+
   scale_y_log10(limits=c(1e7,3e9))+
   facet_grid(assay~phage)+
   scale_shape_manual(values = c(21,23,24))+
   theme_cowplot()+
-  panel_border()
+  panel_border()+
+    scale_fill_viridis_d()+
+    scale_color_viridis_d()+
+    guides(fill=guide_legend(nrow=3,byrow=TRUE),
+         shape=FALSE)+
+  ylab("spore/ml")+
+  ggtitle("Spores st T=0","box is mean±SD")+
+  theme(legend.position = "bottom")+
+    ggsave2(here("figures","T0_spores.png"),width = 6, height = 6)
 
 ```
 
 Which taken together leads to the second point I noticed in the initial plot of this section:  
 2. In all cases entrapment (% viral spores) is higher when infecting $\Delta sspAB$ host.  
 ```{r percent viral spore plot,  message=FALSE, warning=FALSE,echo=FALSE}
-d%>%
+d.Vspore <- d%>%
   mutate(phage=fct_relevel(phage,c("noPhage","Goe2", "SPO1")))%>%
   mutate(host=fct_rev(host))%>%
   filter(host=="wt"|host=="dsspAB")%>%
@@ -499,19 +827,46 @@ d%>%
   rename(viral.spore=PFU, host.spore=CFU)%>%
   mutate(total=viral.spore+host.spore)%>%
     mutate(perc.viral= viral.spore*100/total)%>%
-  filter(phage!="noPhage")%>%
-  ggplot(aes(x=host,y=perc.viral ))+
-  geom_line(aes(group=group), size=1)+
-  geom_point(size=3, fill="grey",alpha=0.5, stroke=2)+
-  facet_grid(.~phage)+
-  scale_shape_manual(values = c(21,3,23))+
+  filter(phage!="noPhage")
+
+sum.Vspore <- 
+  d.Vspore%>%
+  group_by(host,phage)%>%
+  summarise(m=mean(perc.viral), s=sd(perc.viral), n=n())
+  
+  
+  d.Vspore %>%
+    ggplot(aes(x=host, y=perc.viral))+
+    geom_crossbar(data=sum.Vspore, aes(y=m,ymin=m-s, ymax=m+s), position = position_dodge(width=.8), width=.5)+
+    # geom_point(data = sum.spore, aes(x=host,y=m), shape=4)+
+    # geom_line(aes(group=group, color=group),alpha=0.5,size=1)+
+  geom_point(shape=21,size=2, fill="white", stroke=1, position = position_jitter(width=0.2), show.legend=F)+
+  facet_grid(~phage)+
+  scale_shape_manual(values = c(21,23,24))+
   theme_cowplot()+
   panel_border()+
-  ylab("Entrapment (% viral spores)")
+  ylab("spore/ml")+
+  ggtitle("Spores st T=0","box is mean±SD")+
+  theme(legend.position = "bottom")+
+    ggsave2(here("figures","T0_Perc_Vspores.png"),width = 6, height = 6)
+
+
 
 ```
 
-_I note that in the last few plots I drew lines between replication groups across host strains. I want to point out that these groups were only assayed together (plating) and are not truely coupled._
+#t-test
+
+```{r}
+d.Vspore%>%
+  filter(phage=="Goe2")%>%
+  t.test(perc.viral~host,data = .)
+```
+
+```{r}
+d.Vspore%>%
+  filter(phage=="SPO1")%>%
+  t.test(perc.viral~host,data = .)
+```
 
 # Are host SASPs defending against entrapment?? how does this relate to homolog presence in phage?
 
@@ -523,10 +878,11 @@ d%>%
   filter(host=="wt"|host=="dsspAB")%>%
   filter(group!="preliminary")%>%
   filter(!filter)%>%
+  
   filter(heat.min==0)%>%
   mutate(counts=as.numeric(counts))%>%
   mutate(no.ml = counts/(dilution*ml.plated))%>%
-  aov(no.ml~phage+host+assay+group, data = .)%>%
+  aov(no.ml~phage*host*assay+group, data = .)%>%
   summary()
 ```
 
