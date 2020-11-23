@@ -514,7 +514,7 @@ d.slopes%>%
 
   
 ```
-The effect of host strain is obviously very strong. How about the phage treatment? I test this by applying an ANOVA test (`aov`) to the slope estimate  
+The effect of host strain is obviously very strong (plots above are with different scales). How about the phage treatment? I test this by applying an ANOVA test (`aov`) to the slope estimate  
 ```{r ANOVA slopes,  echo=FALSE}
 #make a unique id for samples of the same initial colony
 d.slopes <- d.slopes%>%
@@ -529,143 +529,91 @@ d.slopes <- d.slopes%>%
 
 ```
 
-#post hoc
 
-https://rcompanion.org/handbook/G_09.html
-
+**Testing separatly for each phage vs non-infected controls: **
 
 ```{r}
-m <-d.slopes%>%
+m.goe2 <-d.slopes%>%
   filter(phage!="SPO1")%>%
   aov( estimate ~ host*phage*spore+colony,
        data = .)
 
 print("No phage VS Goe2")
-summary(m)
+summary(m.goe2)
 ```
 
+For Goe2 there is a significant interaction of Phage X Host!
+
+
 ```{r}
-m <-d.slopes%>%
+m.spo1 <-d.slopes%>%
   filter(phage!="Goe2")%>%
   aov( estimate ~ host*phage*spore+colony,
        data = .)
 
 print("No phage VS SPO1")
-summary(m)
+summary(m.spo1)
+```
+
+For SPO1 only the main effect of the host is significant.
+
+### focusing on Goe2 hostXphage
+
+```{r goe2 anova}
+sum.slopes <- 
+d.slopes%>%
+    filter(phage!="SPO1")%>%
+  group_by(host, phage)%>%
+  summarise(slope=mean(estimate), ymin=slope-sd(estimate), ymax=slope+sd(estimate))%>%
+  rename(estimate=slope)
+
+d.slopes%>%
+  filter(phage!="SPO1")%>%
+  ggplot(aes(x=interaction(host,phage), y=estimate))+
+  geom_crossbar(data=sum.slopes, aes(ymin=ymin, ymax=ymax),alpha=.3, position = position_dodge(width=.8), width=.5)+
+  geom_point(aes( shape=group),size=2, stroke=1,position = position_jitterdodge(jitter.width = 0.01,jitter.height = 0),show.legend = F)+
+  scale_shape_manual(values = c(21,23,24))+
+  theme_cowplot()+
+  panel_border()+
+    # scale_fill_viridis_d()+
+  # guides(fill=guide_legend(nrow=3,byrow=TRUE),
+  #        shape=FALSE)+
+  ylab("decay slope")+
+  ggtitle("Spore heat decay","box is mean±SD")+
+  theme(legend.position = "bottom")+
+coord_flip()
+  # ggsave2(here("figures", "slope_values.png"),width = 6,height = 6)
+```
+
+Looking at these plots I would guess that the phageXhost interaction that is driving the significant outcome is the difference between non-infected wt spores and the $\Delta sspAB$ spore, both infected, and non-infected. Next we will test that by Tukey's post hoc.
+
+```{r, message=F}
+tuk <- TukeyHSD(m.goe2,which = c("host:phage"))
+
+tuk
+# I wrote a function to nicely plot the results of this test
+source(here("code","functions", "plot_TukeyHSD.R"))
+
+plot_TukeyHSD (tuk, back = "plot")
+
 ```
 
 
 
-The effect of phage interacting with on the slope is not significant, with a P-value slightly greater then a 0.05 significance threshold. The replication group is lower than the threshold. Which of the groups is responsible for that? I next preform a pairwise t.test for the 3 groups. I do this seperatly for each host. WT host first:  
+And t.test for the WT host:  
 ```{r,  echo=FALSE}
 d.slopes%>%
   filter(host=="wt")%>%
-{pairwise.t.test(.$estimate,.$group, p.adjust.method = "BH")}
+{pairwise.t.test(.$estimate,.$phage, p.adjust.method = "BH")}
 ```
 
-And t.test for the $\Delta sspAB$ host:  
-```{r,  echo=FALSE}
-d.slopes%>%
-  filter(host!="wt")%>%
-{pairwise.t.test(.$estimate,.$group, p.adjust.method = "BH")}
-```
-
-Something is a bit off with group 3 it seems.
-
-```{r}
-d.slopes%>%
-  # add a variable of phage yes or no
-  mutate(phage.treat=phage!="noPhage")%>%
-  filter(assay=="CFU")%>%
-    mutate(uid=paste(host,phage,assay,group, sep = "."))%>%
-  lme(estimate~phage*host,random=~1|uid, data = .)%>%
-  anova()
-```
-
-
-```{r}
-d.slopes%>%
-  # add a variable of phage yes or no
-  mutate(phage.treat=phage!="noPhage")%>%
-  filter(phage!="noPhage")%>%
-    mutate(uid=paste(host,phage,assay,group, sep = "."))%>%
-  lme(estimate~phage*host*assay,random=~1|uid, data = .)%>%
-  anova()
-```
-
-## GLMM
-
-compare CFU producing spores 
-```{r}
-library(nlme)
-  d%>%
-  mutate(phage=fct_relevel(phage,c("noPhage","Goe2", "SPO1")))%>%
-  mutate(host=fct_rev(host))%>%
-  filter(host=="wt"|host=="dsspAB")%>%
-  filter(!filter)%>%
-  # filter(phage!="noPhage")%>%
-  filter(group!="preliminary")%>%
-    # filter(assay=="CFU")%>%
-    #add spore type 
-    mutate(spore=case_when(assay=="PFU" ~ "viral spore",
-                           phage=="noPhage" ~ "non-infected host spore",
-                           TRUE ~ "infected host spore"))%>%
-    mutate(spore=fct_relevel(spore,c("non-infected host spore","infected host spore","viral spore")))%>%
-  mutate(counts=as.numeric(counts ))%>%
-  mutate(no.ml = counts/(dilution*ml.plated))%>%
-  group_by(host,phage,spore, group)%>%
-  mutate(suvival.perc = no.ml/no.ml[heat.min==0])%>%
-  ungroup()%>%
-  mutate(uid=paste(host,phage,spore,group, sep = "."))%>%
-  rename(Time=heat.min)->   d.glm
-  
-  
-  d.glm%>%
-    filter(phage!="SPO1")%>%
-    lme(suvival.perc ~ phage*host*Time,random=~1|uid,data=.,
-      correlation = corAR1(form = ~Time|uid))%>%
-  anova()
-  
-    d.glm%>%
-    filter(phage!="Goe2")%>%
-    lme(suvival.perc ~ phage*host*Time,random=~1|uid,data=.,
-      correlation = corAR1(form = ~Time|uid))%>%
-  anova()
-  
-```
-phage:host borderline significant (P<0.1)
-
-compare spores in phage infected cultures, both types.   
-```{r}
-library(nlme)
-  d%>%
-  mutate(phage=fct_relevel(phage,c("noPhage","Goe2", "SPO1")))%>%
-  mutate(host=fct_rev(host))%>%
-  filter(host=="wt"|host=="dsspAB")%>%
-  filter(!filter)%>%
-  filter(phage!="noPhage")%>%
-  filter(group!="preliminary")%>%
-    # filter(assay=="CFU")%>%
-    #add a variable of phage yes or no
-  # mutate(phage.treat=phage!="noPhage")%>%
-  mutate(counts=as.numeric(counts ))%>%
-  mutate(no.ml = counts/(dilution*ml.plated))%>%
-  group_by(host,phage,assay, group)%>%
-  mutate(suvival.perc = no.ml/no.ml[heat.min==0])%>%
-  ungroup()%>%
-  mutate(uid=paste(host,phage,assay,group, sep = "."))%>%
-  rename(Time=heat.min)%>%
-  lme(suvival.perc ~ phage*host*Time*assay,random=~1|uid,data=.,
-      correlation = corAR1(form = ~Time|uid))%>%
-  anova()
-  
-```
-
-phage:host:Time is significant at 0.05 cutoff. 
+ 
 
 ## Endpoint  
 Rather than using an estimated slope parameter we can also use the fraction of surviving spores at the end of the heat treatemnt (i.e.  [titer at T~end~]/[titer at T~0~]).  
 ```{r endpoint plot,  echo=FALSE, message=FALSE, warning=FALSE}
+
+
 d.endpoint <-
 d%>%
   mutate(phage=fct_relevel(phage,c("noPhage","Goe2", "SPO1")))%>%
@@ -676,36 +624,58 @@ d%>%
   mutate(counts=as.numeric(counts ))%>%
   mutate(no.ml = counts/(dilution*ml.plated))%>%
   group_by(host,phage,assay, group)%>%
-  mutate(perc = no.ml/no.ml[heat.min==0])%>%
-  filter(heat.min==45)
+  mutate(perc = 100*no.ml/no.ml[heat.min==0])%>%
+  filter(heat.min==45)%>%
+     #add spore type 
+    mutate(spore=case_when(assay=="PFU" ~ "viral spore",
+                           phage=="noPhage" ~ "non-infected host spore",
+                           TRUE ~ "infected host spore"))%>%
+    mutate(spore=fct_relevel(spore,c("non-infected host spore","infected host spore","viral spore")))%>%
+  mutate(colony=interaction(host,group))
 
 sum.endpoint <- 
 d.endpoint%>%
-  group_by(host, phage,assay)%>%
+  group_by(host, phage,spore)%>%
   summarise(mean=mean(perc), ymin=mean-sd(perc), ymax=mean+sd(perc))
 
 d.endpoint%>%
   ggplot(aes(x=phage, y=perc))+
-  geom_crossbar(data=sum.endpoint, aes(y=mean,ymin=ymin, ymax=ymax, fill=assay),alpha=.3, position = position_dodge(width=.8), width=.5)+
-  geom_point(aes(fill=assay, shape=group),size=3,stroke=1.5,
-             position = position_jitterdodge(jitter.width = 0.2,
-                                            jitter.height = 0))+
+  geom_crossbar(data=sum.endpoint, aes(y=mean,ymin=ymin, ymax=ymax, fill=spore),alpha=.3, position = position_dodge(width=.8), width=.5)+
+  geom_point(aes(fill=spore, shape=group),size=2, stroke=1,position = position_jitterdodge(jitter.width = 0.01,jitter.height = 0),show.legend = F)+
   scale_shape_manual(values = c(21,23,24))+
   theme_cowplot()+
   panel_border()+
-  facet_wrap(~host,nrow = 1)+
+  facet_wrap(~host,nrow = 1, scales = "free_y")+
+  scale_fill_viridis_d()+
+  guides(fill=guide_legend(nrow=3,byrow=TRUE),
+         shape=FALSE)+
   ylab("% spores at 45min")+
-  ggtitle("Spore survival (90dC, 45min)","box is mean±SD")
+  ggtitle("Spore survival (90dC, 45min)","box is mean±SD")+
+  theme(legend.position = "bottom")
+  ggsave2(here("figures", "endpoint.png"),width = 6,height = 6)
+
 
 ```
 
 And like above we can run ANOVA on surviving fraction at end point:  
-```{r ANOVA endpoint,  echo=FALSE, message=FALSE, warning=FALSE}
-  aov(perc~phage+host+assay+group, d.endpoint)$call%>%
-  print()
+```{r ANOVA endpoint Goe2,  echo=FALSE, message=FALSE, warning=FALSE}
+ mm <-  
+  d.endpoint%>%
+  filter(phage!="SPO1")%>%
+  aov(perc~phage*host*spore+colony, .)
+  
+print("No phage VS Goe2")
+  summary(mm)
+```
 
-  aov(perc~phage+host+assay+group, d.endpoint)%>%
-  summary(.)
+```{r ANOVA endpoint SPO1,  echo=FALSE, message=FALSE, warning=FALSE}
+ mm <-  
+  d.endpoint%>%
+  filter(phage!="Goe2")%>%
+  aov(perc~phage*host*spore+colony, .)
+  
+print("No phage VS SPO1")
+  summary(mm)
 ```
 
 **Endpoint similar to slopes**  
@@ -881,14 +851,6 @@ sum.Vspore <-
     ggsave2(here("figures","T0_Perc_Vspores.png"),width = 6, height = 6)
 
 
-  ggplot(aes(x=host,y=perc.viral ))+
-  geom_line(aes(group=group), size=1)+
-  geom_point(size=3, fill="grey",alpha=0.5, stroke=2)+
-  facet_grid(.~phage)+
-  scale_shape_manual(values = c(21,3,23))+
-  theme_cowplot()+
-  panel_border()+
-  ylab("Entrapment (% viral spores)")
 
 ```
 
