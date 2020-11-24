@@ -496,23 +496,26 @@ d.slopes%>%
   summarise(slope=mean(estimate), ymin=slope-sd(estimate), ymax=slope+sd(estimate))%>%
   rename(estimate=slope)
 
-d.slopes%>%
+p <- d.slopes%>%
   ggplot(aes(x=phage, y=estimate))+
   geom_crossbar(data=sum.slopes, aes(ymin=ymin, ymax=ymax, fill=spore),alpha=.3, position = position_dodge(width=.8), width=.5)+
   geom_point(aes(fill=spore, shape=group),size=2, stroke=1,position = position_jitterdodge(jitter.width = 0.01,jitter.height = 0),show.legend = F)+
   scale_shape_manual(values = c(21,23,24))+
   theme_cowplot()+
   panel_border()+
-  facet_wrap(~host,nrow = 1, scales = "free_y")+
   scale_fill_viridis_d()+
   guides(fill=guide_legend(nrow=3,byrow=TRUE),
          shape=FALSE)+
   ylab("decay slope")+
   ggtitle("Spore heat decay","box is mean±SD")+
-  theme(legend.position = "bottom")+
-  ggsave2(here("figures", "slope_values.png"),width = 6,height = 6)
+  theme(legend.position = "bottom")
 
-  
+
+p+facet_wrap(~host,nrow = 1, scales = "free_y")+
+  ggsave2(here("figures", "slope_values_freeY.png"),width = 6,height = 6)
+
+p+facet_wrap(~host,nrow = 1)+
+  ggsave2(here("figures", "slope_values_fixY.png"),width = 6,height = 6)  
 ```
 The effect of host strain is obviously very strong (plots above are with different scales). How about the phage treatment? I test this by applying an ANOVA test (`aov`) to the slope estimate  
 ```{r ANOVA slopes,  echo=FALSE}
@@ -638,21 +641,25 @@ d.endpoint%>%
   group_by(host, phage,spore)%>%
   summarise(mean=mean(perc), ymin=mean-sd(perc), ymax=mean+sd(perc))
 
-d.endpoint%>%
+p <- d.endpoint%>%
   ggplot(aes(x=phage, y=perc))+
   geom_crossbar(data=sum.endpoint, aes(y=mean,ymin=ymin, ymax=ymax, fill=spore),alpha=.3, position = position_dodge(width=.8), width=.5)+
   geom_point(aes(fill=spore, shape=group),size=2, stroke=1,position = position_jitterdodge(jitter.width = 0.01,jitter.height = 0),show.legend = F)+
   scale_shape_manual(values = c(21,23,24))+
   theme_cowplot()+
   panel_border()+
-  facet_wrap(~host,nrow = 1, scales = "free_y")+
   scale_fill_viridis_d()+
   guides(fill=guide_legend(nrow=3,byrow=TRUE),
          shape=FALSE)+
   ylab("% spores at 45min")+
   ggtitle("Spore survival (90dC, 45min)","box is mean±SD")+
   theme(legend.position = "bottom")
-  ggsave2(here("figures", "endpoint.png"),width = 6,height = 6)
+
+p+facet_wrap(~host,nrow = 1)+
+ggsave2(here("figures", "endpoint_fixY.png"),width = 6,height = 6)
+  
+p+facet_wrap(~host,nrow = 1, scales = "free_y")+
+ggsave2(here("figures", "endpoint_freey.png"),width = 6,height = 6)
 
 
 ```
