@@ -327,13 +327,13 @@ sum.rep.plot <-
   #add infected data back in
   bind_rows(.,sum.rep.inf )
     
-sum.rep.plot%>%
+p.decay <- sum.rep.plot%>%
   mutate(spore=fct_relevel(spore,c("non-infected host spore","infected host spore","viral spore")))%>%
   ggplot(aes(x=heat.min, y=m, color=spore))+
     geom_line(size=1)+
     geom_pointrange(aes(ymax=m+s, ymin=m-s), size=0.8,shape=21, fill="white")+
   scale_y_log10()+
-  facet_grid(host~phage)+
+  facet_grid(phage~host)+
   theme_cowplot()+
   panel_border()+
   xlab("Time at 90dC (min)")+
@@ -341,7 +341,11 @@ sum.rep.plot%>%
   # scale_color_manual(values = c("black", "red", "violet"))+
   scale_color_viridis_d()+
   scale_x_continuous(breaks = c(0,15,30,45))+
-  theme(legend.position = "bottom")+
+  theme(legend.position = "bottom",
+        legend.title = element_blank())+
+  guides(color=guide_legend(nrow=2,byrow=TRUE))
+
+p.decay+
   ggsave2(here("figures", "replcated_heatTreat.png"),width = 6,height = 6)
 ```
 
@@ -507,16 +511,57 @@ p <- d.slopes%>%
   guides(fill=guide_legend(nrow=3,byrow=TRUE),
          shape=FALSE)+
   ylab("decay slope")+
-  ggtitle("Spore heat decay","box is mean±SD")+
-  theme(legend.position = "bottom")
+    theme(legend.position = "bottom")
 
 
 p+facet_wrap(~host,nrow = 1, scales = "free_y")+
+  ggtitle("Spore heat decay","box is mean±SD")+
   ggsave2(here("figures", "slope_values_freeY.png"),width = 6,height = 6)
 
 p+facet_wrap(~host,nrow = 1)+
+  ggtitle("Spore heat decay","box is mean±SD")+
   ggsave2(here("figures", "slope_values_fixY.png"),width = 6,height = 6)  
 ```
+
+```{r}
+#plot for outline
+p.goe2 <- d.slopes%>%
+  filter(phage!="SPO1")%>%
+  ggplot(aes(x=phage, y=estimate))+
+  geom_crossbar(data=filter(sum.slopes,phage!="SPO1"), aes(ymin=ymin, ymax=ymax, fill=spore),alpha=.3, position = position_dodge(width=.8), width=.5)+
+  geom_point(aes(fill=spore, shape=group),size=2, stroke=1,position = position_jitterdodge(jitter.width = 0.01,jitter.height = 0),show.legend = F)+
+  scale_shape_manual(values = c(21,23,24))+
+    theme_cowplot()+
+  panel_border()+
+  scale_fill_viridis_d()+
+  ylab("decay slope")+
+    theme(legend.position = "none",
+          axis.title.x = element_blank())+
+          # axis.text.x = element_text(angle = 30, hjust = 1))+
+  facet_wrap(~host,nrow = 1)
+
+p.spo1 <- d.slopes%>%
+  filter(phage!="Goe2")%>%
+  ggplot(aes(x=phage, y=estimate))+
+  geom_crossbar(data=filter(sum.slopes,phage!="Goe2"), aes(ymin=ymin, ymax=ymax, fill=spore),alpha=.3, position = position_dodge(width=.8), width=.5)+
+  geom_point(aes(fill=spore, shape=group),size=2, stroke=1,position = position_jitterdodge(jitter.width = 0.01,jitter.height = 0),show.legend = F)+
+  scale_shape_manual(values = c(21,23,24))+
+  theme_cowplot()+
+  panel_border()+
+  scale_fill_viridis_d()+
+  ylab("decay slope")+
+    theme(legend.position = "none",
+          axis.title.x = element_blank())+
+  facet_wrap(~host,nrow = 1)
+
+right.col <- plot_grid(p.goe2,p.spo1, ncol = 1, labels = LETTERS[2:3])
+
+plot_grid(p.decay,right.col,
+          labels = c("A",""))+
+  ggsave2(here("figures", "lines_and_slopes.png"),
+          width = 8,height = 5)
+```
+
 The effect of host strain is obviously very strong (plots above are with different scales). How about the phage treatment? I test this by applying an ANOVA test (`aov`) to the slope estimate  
 ```{r ANOVA slopes,  echo=FALSE}
 #make a unique id for samples of the same initial colony
