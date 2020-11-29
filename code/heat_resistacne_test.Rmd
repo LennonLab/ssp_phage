@@ -562,6 +562,82 @@ plot_grid(p.decay,right.col,
           width = 8,height = 5)
 ```
 
+
+# comparing each sample to it non-infected paired control
+```{r}
+# samples of the same host and group are in facte paired. 
+# I will look at ratio of slopes of infected/non infected pairs
+d.slopes%>%
+  filter(phage!="SPO1")%>%
+  # define colony variable
+  mutate(colony=interaction(host, group))%>%
+  # make each spore type a column, for ratio
+  pivot_wider(id_cols=c("host", "colony"), 
+              names_from=spore,
+              values_from=estimate)%>%
+  #calc. ratio for CFU spores
+  mutate(ratio.cfu=`infected host spore`/`non-infected host spore`)%>%
+    #calc. ratio for PFU spores
+  mutate(ratio.pfu=`viral spore`/`non-infected host spore`)%>%
+  #return to long format with ratios
+  select(-`non-infected host spore`,-`infected host spore`,-`viral spore`)%>%
+  pivot_longer(cols=c("ratio.cfu", "ratio.pfu"),names_to = "spore.type", values_to="slope.ratio") -> ratio.goe2
+  
+
+ratio.goe2%>%
+  ggplot(aes(x=spore.type, y=slope.ratio))+
+  geom_hline(yintercept = 1)+
+  # geom_crossbar(data=filter(sum.slopes,phage!="Goe2"), aes(ymin=ymin, ymax=ymax, fill=spore),alpha=.3, position = position_dodge(width=.8), width=.5)+
+  geom_point(aes( shape=colony),size=2, stroke=1,position = position_jitterdodge(jitter.width = 0.01,jitter.height = 0),show.legend = F)+
+  # scale_shape_manual(values = c(21,23,24))+
+  theme_cowplot()+
+  facet_wrap(~host)+
+  panel_border()+
+  scale_fill_viridis_d()+
+  ylab("decay slope ratio")+
+    theme(legend.position = "none",
+          axis.title.x = element_blank())+
+  facet_wrap(~host,nrow = 1)
+  
+```
+
+```{r}
+# samples of the same host and group are in facte paired. 
+# I will look at ratio of slopes of infected/non infected pairs
+d.slopes%>%
+  filter(phage!="Goe2")%>%
+  # define colony variable
+  mutate(colony=interaction(host, group))%>%
+  # make each spore type a column, for ratio
+  pivot_wider(id_cols=c("host", "colony"), 
+              names_from=spore,
+              values_from=estimate)%>%
+  #calc. ratio for CFU spores
+  mutate(ratio.cfu=`infected host spore`/`non-infected host spore`)%>%
+    #calc. ratio for PFU spores
+  mutate(ratio.pfu=`viral spore`/`non-infected host spore`)%>%
+  #return to long format with ratios
+  select(-`non-infected host spore`,-`infected host spore`,-`viral spore`)%>%
+  pivot_longer(cols=c("ratio.cfu", "ratio.pfu"),names_to = "spore.type", values_to="slope.ratio") -> ratio.spo1
+  
+
+ratio.spo1%>%
+  ggplot(aes(x=spore.type, y=slope.ratio))+
+  geom_hline(yintercept = 1)+
+  # geom_crossbar(data=filter(sum.slopes,phage!="Goe2"), aes(ymin=ymin, ymax=ymax, fill=spore),alpha=.3, position = position_dodge(width=.8), width=.5)+
+  geom_point(aes( shape=colony),size=2, stroke=1,position = position_jitterdodge(jitter.width = 0.01,jitter.height = 0),show.legend = F)+
+  # scale_shape_manual(values = c(21,23,24))+
+  theme_cowplot()+
+  facet_wrap(~host)+
+  panel_border()+
+  scale_fill_viridis_d()+
+  ylab("decay slope ratio")+
+    theme(legend.position = "none",
+          axis.title.x = element_blank())+
+  facet_wrap(~host,nrow = 1)
+  
+```
+
 The effect of host strain is obviously very strong (plots above are with different scales). How about the phage treatment? I test this by applying an ANOVA test (`aov`) to the slope estimate  
 ```{r ANOVA slopes,  echo=FALSE}
 #make a unique id for samples of the same initial colony
