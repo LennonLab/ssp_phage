@@ -349,6 +349,33 @@ p.decay+
   ggsave2(here("figures", "replcated_heatTreat.png"),width = 6,height = 6)
 ```
 
+# Plot lines of paired samples
+```{r}
+p.decay.colony <- 
+d.rep.plot%>%
+  mutate(spore=as_factor(spore))%>%
+  mutate(spore=fct_relevel(spore,c("non-infected host spore","infected host spore","viral spore")))%>%
+  mutate(colony=str_replace(group,"g","col"))%>%
+    ggplot(aes(x=heat.min, y=perc, color=spore))+
+    geom_line(aes(group=interaction(host,phage,assay,group,spore)),size=1)+
+    geom_point(size=2,shape=21, fill="white")+
+  scale_y_log10()+
+  facet_grid(phage ~ host + colony)+
+  theme_cowplot()+
+  panel_border()+
+  xlab("Time at 90dC (min)")+
+  ylab("Survival percent (log)")+
+  # scale_color_manual(values = c("black", "red", "violet"))+
+  scale_color_viridis_d()+
+  scale_x_continuous(breaks = c(0,15,30,45))+
+  theme(legend.position = "bottom")
+
+p.decay.colony+
+  ggsave2(here("figures", "paired_heatTreat_ALL.png"),width = 6,height = 6)
+
+```
+
+
 ## Comparing slopes  
 To be able to compare the heat-resistance of different samples and treatments we next estimate the slope of each curve by fitting a linear model. The estimated parameters of the models are given in the following tables, where each line is a single parameter (see column `term`; `heat.min` is the slope).  
 
@@ -563,59 +590,57 @@ plot_grid(p.decay,right.col,
 ```
 
 
-```{r}
-plot_grid(p.decay,p.ratio,
-          labels = c("A","B"))+
-  ggsave2(here("figures", "lines_and_ratio.png"),
-          width = 8,height = 5)
-```
 
 
 # comparing each sample to it non-infected paired control
 ```{r}
 # samples of the same host and group are in facte paired. 
-# I will look at ratio of slopes of infected/non infected pairs
+# I will look at difference of slopes of infected/non infected pairs
 d.slopes%>%
   filter(phage!="SPO1")%>%
   # define colony variable
   mutate(colony=interaction(host, group))%>%
-  # make each spore type a column, for ratio
+  #resistance  = 1+slope
+  mutate(resistance=1+estimate)%>%
+  # make each spore type a column, for diff
   pivot_wider(id_cols=c("host", "colony"), 
               names_from=spore,
-              values_from=estimate)%>%
-  #calc. ratio for CFU spores
-  mutate(ratio.cfu=`infected host spore`/`non-infected host spore`)%>%
-    #calc. ratio for PFU spores
-  mutate(ratio.pfu=`viral spore`/`non-infected host spore`)%>%
-  #return to long format with ratios
+              values_from=resistance)%>%
+  #calc. diff for CFU spores
+  mutate(diff.cfu=`infected host spore`-`non-infected host spore`)%>%
+    #calc. diff for PFU spores
+  mutate(diff.pfu=`viral spore`-`non-infected host spore`)%>%
+  #return to long format with diffs
   select(-`non-infected host spore`,-`infected host spore`,-`viral spore`)%>%
-  pivot_longer(cols=c("ratio.cfu", "ratio.pfu"),names_to = "spore.type", values_to="slope.ratio")%>%
-  mutate(phage="Goe2")-> ratio.goe2
+  pivot_longer(cols=c("diff.cfu", "diff.pfu"),names_to = "spore.type", values_to="slope.diff")%>%
+  mutate(phage="Goe2")-> diff.goe2
   
 
 d.slopes%>%
   filter(phage!="Goe2")%>%
   # define colony variable
   mutate(colony=interaction(host, group))%>%
-  # make each spore type a column, for ratio
+    #resistance  = 1+slope
+  mutate(resistance=1+estimate)%>%
+  # make each spore type a column, for diff
   pivot_wider(id_cols=c("host", "colony"), 
               names_from=spore,
-              values_from=estimate)%>%
-  #calc. ratio for CFU spores
-  mutate(ratio.cfu=`infected host spore`/`non-infected host spore`)%>%
-    #calc. ratio for PFU spores
-  mutate(ratio.pfu=`viral spore`/`non-infected host spore`)%>%
-  #return to long format with ratios
+              values_from=resistance)%>%
+  #calc. diff for CFU spores
+  mutate(diff.cfu=`infected host spore`-`non-infected host spore`)%>%
+    #calc. diff for PFU spores
+  mutate(diff.pfu=`viral spore`-`non-infected host spore`)%>%
+  #return to long format with diffs
   select(-`non-infected host spore`,-`infected host spore`,-`viral spore`)%>%
-  pivot_longer(cols=c("ratio.cfu", "ratio.pfu"),names_to = "spore.type", values_to="slope.ratio")%>%
-    mutate(phage="SPO1")-> ratio.spo1
+  pivot_longer(cols=c("diff.cfu", "diff.pfu"),names_to = "spore.type", values_to="slope.diff")%>%
+  mutate(phage="SPO1")-> diff.spo1
   
 
-rbind(ratio.goe2,ratio.spo1)%>%
+rbind(diff.goe2,diff.spo1)%>%
   separate(colony, into = c("host2", "group"), remove = F)%>%
-  mutate(spore=ifelse(spore.type=="ratio.cfu", "host\nspore", "viral\nspore"))%>%
-  ggplot(aes(x=spore, y=slope.ratio))+
-  geom_hline(yintercept = 1, linetype=2)+
+  mutate(spore=ifelse(spore.type=="diff.cfu", "host\nspore", "viral\nspore"))%>%
+  ggplot(aes(x=spore, y=slope.diff))+
+  geom_hline(yintercept = 0, linetype=2)+
   # geom_crossbar(data=filter(sum.slopes,phage!="Goe2"), aes(ymin=ymin, ymax=ymax, fill=spore),alpha=.3, position = position_dodge(width=.8), width=.5)+
   geom_jitter(aes( shape=group),size=2, stroke=2, width=.2, height = 0,alpha=0.5,show.legend = F)+
   scale_shape_manual(values = c(21,23,24))+
@@ -623,13 +648,24 @@ rbind(ratio.goe2,ratio.spo1)%>%
   facet_grid(phage~host)+
   panel_border()+
   scale_fill_viridis_d()+
-  ylab("decay slope ratio\n(w. phage/w.o phage)")+
-  xlab("w. phage spore type")+
-    theme(legend.position = "none") -> p.ratio
+  ylab("resistance difference induced by\nphage infection (infected-control)")+
+  xlab("infected spore type")+
+    theme(legend.position = "none")+
+  labs(caption = "resistance = 1+decay slope")-> p.diff
 
-p.ratio+
-  ggsave2(here("figures","slope_ratio.png"), width = 7, height = 7)
+p.diff+
+  ggsave2(here("figures","slope_diff.png"), width = 7, height = 7)
   
+```
+
+```{r}
+left.col <- plot_grid(p.goe2,p.spo1, ncol = 1)
+bottom_row <- 
+  plot_grid(left.col,p.diff ,labels = c("B","C"))
+plot_grid(p.decay.colony,bottom_row,
+          labels = c("A",""), nrow = 2)+
+  ggsave2(here("figures", "lines_and_diff.png"),
+          width = 8,height = 8)
 ```
 
 The effect of host strain is obviously very strong (plots above are with different scales). How about the phage treatment? I test this by applying an ANOVA test (`aov`) to the slope estimate  
