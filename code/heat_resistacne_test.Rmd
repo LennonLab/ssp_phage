@@ -392,7 +392,7 @@ d%>%
   mutate(counts=as.numeric(counts ))%>%
   mutate(no.ml = counts/(dilution*ml.plated))%>%
   group_by(host,phage,assay, group)%>%
-  mutate(perc = no.ml/no.ml[heat.min==0])
+  mutate(perc = 100*no.ml/no.ml[heat.min==0])
 
 d.lm.fit <- 
   d.lm%>%
@@ -448,7 +448,7 @@ d%>%
   mutate(counts=as.numeric(counts ))%>%
   mutate(no.ml = counts/(dilution*ml.plated))%>%
   group_by(host,phage,assay, group)%>%
-  mutate(perc = no.ml/no.ml[heat.min==0])%>%
+  mutate(perc = 100*no.ml/no.ml[heat.min==0])%>%
   ggplot(aes(x=heat.min, y=perc))+
     geom_abline(data=d.lm.estimates,
                 aes(slope=slope, intercept=intercept,
@@ -481,7 +481,7 @@ d%>%
   mutate(counts=as.numeric(counts ))%>%
   mutate(no.ml = counts/(dilution*ml.plated))%>%
   group_by(host,phage,assay, group)%>%
-  mutate(perc = no.ml/no.ml[heat.min==0])%>%
+  mutate(perc = 100*no.ml/no.ml[heat.min==0])%>%
   ggplot(aes(x=heat.min, y=perc))+
     geom_abline(data=d.lm.estimates,
                 aes(slope=slope, intercept=intercept,
@@ -502,20 +502,57 @@ d%>%
 ```
 
 
-```{r slopes pval, eval=FALSE,  echo=FALSE, message=FALSE, warning=FALSE}
-  #   d.lm%>%
-  # pivot_wider(id_cols = c(host, phage, assay, group),names_from=term, values_from=p.value)%>%
-  # rename(slope=heat.min, intercept=`(Intercept)` )%>%
-  #   ggplot(aes(x=intercept, y=slope))+
-  #   geom_hline(yintercept = 0.05, size=1, color="grey")+
-  # geom_vline(xintercept = 0.05, size=1, color="grey")+
-  #     geom_point(aes(color=host, shape=phage))+
-  #     # facet_wrap(~term, scales = "free_x")+
-  #   scale_shape_manual(values = c(21,23,24))+
-  #     theme_cowplot()+
-  # scale_y_log10()+
-  # scale_x_log10()+
-  # ggtitle("P values of estimated prameters","Grey lines mark P=0.05")
+# Plot lines of paired samples
+```{r}
+# arrange slope estimate data for plotting
+#replicate nophage data for bith phages
+d.lm.goe2 <- d.lm.estimates%>%
+  filter(phage!="SPO1")%>%
+      mutate(spore=case_when(assay=="PFU" ~ "viral spore",
+                           phage=="noPhage" ~ "non-infected host spore",
+                           TRUE ~ "infected host spore"))%>%
+  mutate(spore=as_factor(spore))%>%
+  mutate(spore=fct_relevel(spore,c("non-infected host spore","infected host spore","viral spore")))%>%
+    mutate(colony=str_replace(group,"g","col"))%>%
+  mutate(phage="Goe2")
+
+d.lm.spo1 <- d.lm.estimates%>%
+  filter(phage!="Goe2")%>%
+      mutate(spore=case_when(assay=="PFU" ~ "viral spore",
+                           phage=="noPhage" ~ "non-infected host spore",
+                           TRUE ~ "infected host spore"))%>%
+  mutate(spore=as_factor(spore))%>%
+  mutate(spore=fct_relevel(spore,c("non-infected host spore","infected host spore","viral spore")))%>%
+    mutate(colony=str_replace(group,"g","col"))%>%
+  mutate(phage="SPO1")
+
+d.lm.plot <- (rbind(d.lm.goe2,d.lm.spo1))
+
+
+p.slope.colony <-
+d.rep.plot%>%
+  mutate(spore=as_factor(spore))%>%
+  mutate(spore=fct_relevel(spore,c("non-infected host spore","infected host spore","viral spore")))%>%
+  mutate(colony=str_replace(group,"g","col"))%>%
+    ggplot(aes(x=heat.min, y=perc, color=spore))+
+    geom_line(aes(group=interaction(host,phage,assay,group,spore)),size=.3,alpha=.5)+
+   geom_abline(data=d.lm.plot,
+                aes(slope=slope, intercept=intercept, color=spore),size=1, linetype=2)+
+    geom_point(aes(fill=spore),size=2,shape=21, alpha=.8, color="black")+
+  facet_grid(phage ~ host + colony)+
+  theme_cowplot()+
+  panel_border()+
+  xlab("Time at 90dC (min)")+
+  ylab("Survival percent")+
+  # scale_color_manual(values = c("black", "red", "violet"))+
+  scale_color_viridis_d()+
+  scale_fill_viridis_d()+
+  scale_x_continuous(breaks = c(0,15,30,45))+
+  theme(legend.position = "bottom")
+# 
+p.slope.colony+
+  ggsave2(here("figures", "paired_slopes.png"),width = 6,height = 6)
+
 ```
 
 If we do take the slopes as meaningful we can now ask if the presence of phage has an effect on the response of spore titer to heat treatment. First a look at the data. 
@@ -662,7 +699,7 @@ p.diff+
 left.col <- plot_grid(p.goe2,p.spo1, ncol = 1)
 bottom_row <- 
   plot_grid(left.col,p.diff ,labels = c("B","C"))
-plot_grid(p.decay.colony,bottom_row,
+plot_grid(p.slope.colony,bottom_row,
           labels = c("A",""), nrow = 2)+
   ggsave2(here("figures", "lines_and_diff.png"),
           width = 8,height = 8)
@@ -687,13 +724,78 @@ d.slopes <- d.slopes%>%
 **Testing separatly for each phage vs non-infected controls: **
 
 ```{r}
-m.goe2 <-d.slopes%>%
-  filter(phage!="SPO1")%>%
-  aov( estimate ~ host*phage*spore+colony,
-       data = .)
+# m.goe2 <-d.slopes%>%
+#   filter(phage!="SPO1")%>%
+#   aov( estimate ~ host*phage*spore+colony,
+#        data = .)
+# 
+# print("No phage VS Goe2")
+# summary(m.goe2)
 
-print("No phage VS Goe2")
-summary(m.goe2)
+diff.goe2%>%
+  ungroup()%>%
+  filter(spore.type=="diff.cfu")%>%
+  filter(host=="wt")%>%
+  select(slope.diff)%>%
+  as_vector()%>%
+  t.test(.)
+
+diff.goe2%>%
+  ungroup()%>%
+  filter(spore.type=="diff.cfu")%>%
+  filter(host=="dsspAB")%>%
+  select(slope.diff)%>%
+  as_vector()%>%
+  t.test(.)
+
+diff.goe2%>%
+  ungroup()%>%
+  filter(spore.type=="diff.pfu")%>%
+  filter(host=="wt")%>%
+  select(slope.diff)%>%
+  as_vector()%>%
+  t.test(.)
+
+diff.goe2%>%
+  ungroup()%>%
+  filter(spore.type=="diff.pfu")%>%
+  filter(host=="dsspAB")%>%
+  select(slope.diff)%>%
+  as_vector()%>%
+  t.test(.)
+
+
+diff.spo1%>%
+  ungroup()%>%
+  filter(spore.type=="diff.cfu")%>%
+  filter(host=="wt")%>%
+  select(slope.diff)%>%
+  as_vector()%>%
+  t.test(.)
+
+diff.spo1%>%
+  ungroup()%>%
+  filter(spore.type=="diff.cfu")%>%
+  filter(host=="dsspAB")%>%
+  select(slope.diff)%>%
+  as_vector()%>%
+  t.test(.)
+
+diff.spo1%>%
+  ungroup()%>%
+  filter(spore.type=="diff.pfu")%>%
+  filter(host=="wt")%>%
+  select(slope.diff)%>%
+  as_vector()%>%
+  t.test(.)
+
+diff.spo1%>%
+  ungroup()%>%
+  filter(spore.type=="diff.pfu")%>%
+  filter(host=="dsspAB")%>%
+  select(slope.diff)%>%
+  as_vector()%>%
+  t.test(.)
 ```
 
 For Goe2 there is a significant interaction of Phage X Host!
