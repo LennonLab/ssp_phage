@@ -410,10 +410,31 @@ d.lm.fit <-
 # deviance: deviance
 # df.residual: residual degrees of freedom
 
-d.lm <- 
+# #fitting in log scale
+# d.lm.fit.log <- 
+#   d.lm%>%
+#    do(glance(lm(log10(perc)~heat.min,.)))
+# 
+# comp <- 
+#   full_join(
+#    select(d.lm.fit,host,phage,assay,group, lin.lm=statistic),
+#    select(d.lm.fit.log,host,phage,assay,group, log.lm=statistic)
+#   )
+# 
+# comp%>%
+#   ggplot(aes(lin.lm,log.lm))+
+#   geom_point()
+
+#fitting in log scale
+d.lm.fit <- 
   d.lm%>%
-   do(tidy(lm(perc~heat.min,.)))
- 
+   do(glance(lm(log10(perc)~heat.min,.)))
+
+d.lm <-
+  d.lm%>%
+   do(tidy(lm(log10(perc)~heat.min,.)))
+
+
   d.lm.estimates <- 
     d.lm%>%
     select(host,phage,assay,group,term,estimate)%>%
@@ -427,6 +448,7 @@ d.lm <-
     mutate(spore=case_when(assay=="PFU" ~ "viral spore",
                            phage=="noPhage" ~ "non-infected host spore",
                            TRUE ~ "infected host spore"))%>%
+    mutate(spore=as_factor(spore))%>%
     mutate(spore=fct_relevel(spore,c("non-infected host spore","infected host spore","viral spore")))
     
   
@@ -449,6 +471,7 @@ d%>%
   mutate(no.ml = counts/(dilution*ml.plated))%>%
   group_by(host,phage,assay, group)%>%
   mutate(perc = 100*no.ml/no.ml[heat.min==0])%>%
+  mutate(perc = log10(perc))%>%
   ggplot(aes(x=heat.min, y=perc))+
     geom_abline(data=d.lm.estimates,
                 aes(slope=slope, intercept=intercept,
@@ -482,6 +505,7 @@ d%>%
   mutate(no.ml = counts/(dilution*ml.plated))%>%
   group_by(host,phage,assay, group)%>%
   mutate(perc = 100*no.ml/no.ml[heat.min==0])%>%
+    mutate(perc = log10(perc))%>%
   ggplot(aes(x=heat.min, y=perc))+
     geom_abline(data=d.lm.estimates,
                 aes(slope=slope, intercept=intercept,
@@ -548,7 +572,8 @@ d.rep.plot%>%
   scale_color_viridis_d()+
   scale_fill_viridis_d()+
   scale_x_continuous(breaks = c(0,15,30,45))+
-  theme(legend.position = "bottom")
+  theme(legend.position = "bottom")+
+  scale_y_log10()
 # 
 p.slope.colony+
   ggsave2(here("figures", "paired_slopes.png"),width = 6,height = 6)
