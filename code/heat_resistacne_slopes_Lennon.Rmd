@@ -15,7 +15,8 @@ geometry: margin=2.54cm
 # Clear and set working directory 
 rm(list = ls())
 setwd("~/GitHub/ssp_phage/data")
-libary("dplyr")
+library("dplyr")
+library("tidyr")
 d<- read.csv("~/GitHub/ssp_phage/data/HeatDecaySlopes.csv", header = TRUE)
 ```
 
@@ -23,11 +24,12 @@ d<- read.csv("~/GitHub/ssp_phage/data/HeatDecaySlopes.csv", header = TRUE)
 
 ```{r}
 cfu.1 <- filter(d, assay == "CFU" & phage == "noPhage") %>%
-  dplyr::select(host, assay, group, slope)  
+  dplyr::select(host, assay, group, slope)
 
 # convert to wide
 cfu.1 <- cfu.1 %>% 
-  spread(host, slope)
+  # spread(host, slope)
+  tidyr::pivot_wider(names_from=host, values_from=slope)
 
 # calculate difference and test
 cfu.1 <- mutate(cfu.1, dif = cfu.1$wt-cfu.1$dsspAB)
@@ -38,6 +40,27 @@ cfu.1.test <- t.test(cfu.1$dif, mu = 0, alternative = "greater")
 # one-sided: P = 0.006816
 ```
 
+Comparing slopes without pairing 
+```{r}
+cfu.1 <- filter(d, assay == "CFU" & phage == "noPhage") %>%
+  dplyr::select(host, assay, group, slope)
+
+x.wt <-  cfu.1%>%
+  filter(host=="wt")%>%
+  pull(slope)
+
+y.mut <-  cfu.1%>%
+  filter(host=="dsspAB")%>%
+  pull(slope)
+
+cfu.1.test2 <- t.test(x.wt,y.mut,alternative = "greater")
+
+# Same answer: deletion of sspAB reduces heat tolerance ()
+# two-sided: P = 0.005858
+# one-sided: P = 0.002929
+```
+
+
 # Does infection with phage ameliorate effects of sspAB deletion?
 
 ```{r}
@@ -46,7 +69,8 @@ cfu.2 <- filter(d, assay == "CFU", host == "dsspAB") %>%
 
 # convert to wide
 cfu.2 <- cfu.2 %>% 
-  spread(phage, slope)
+  # spread(phage, slope)
+  tidyr::pivot_wider(names_from=phage, values_from=slope)
 
 # calculate difference and test
 cfu.2 <- mutate(cfu.2, dif.1 = cfu.2$noPhage-cfu.2$Goe2, 
