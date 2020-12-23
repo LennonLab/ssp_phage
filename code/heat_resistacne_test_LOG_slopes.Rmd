@@ -450,9 +450,15 @@ d.lm <-
                            TRUE ~ "infected host spore"))%>%
     mutate(spore=as_factor(spore))%>%
     mutate(spore=fct_relevel(spore,c("non-infected host spore","infected host spore","viral spore")))
-    
+  # export slope data
+  d.slopes%>%
+    mutate(colony=paste0(host,"-col",group))%>%
+    mutate(colony=str_replace(colony,"colg","col"))%>%
+    rename(slope=estimate)%>%
+    write_csv(here("data/HeatDecaySlopes.csv"))
   
-  d.lm
+  d.lm 
+  
 ```
 
 # plot estimated slopes  
