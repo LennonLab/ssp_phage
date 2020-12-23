@@ -1,0 +1,64 @@
+---
+title: "SSAP slopes"
+author: "Jay T. Lennon"
+date: "`r format(Sys.time(), '%d %B, %Y')`"
+header-includes:
+  - \usepackage{array}
+output: pdf_document
+geometry: margin=2.54cm
+---
+
+
+# Set working environment; load packages and data
+
+```{r setup, message = FALSE, warning = FALSE}
+# Clear and set working directory 
+rm(list = ls())
+setwd("~/GitHub/ssp_phage/data")
+libary("dplyr")
+d<- read.csv("~/GitHub/ssp_phage/data/HeatDecaySlopes.csv", header = TRUE)
+```
+
+# Does deletion of sspAB diminish slope?
+
+```{r}
+cfu.1 <- filter(d, assay == "CFU" & phage == "noPhage") %>%
+  dplyr::select(host, assay, group, slope)  
+
+# convert to wide
+cfu.1 <- cfu.1 %>% 
+  spread(host, slope)
+
+# calculate difference and test
+cfu.1 <- mutate(cfu.1, dif = cfu.1$wt-cfu.1$dsspAB)
+cfu.1.test <- t.test(cfu.1$dif, mu = 0, alternative = "greater")
+
+# Answer: yes, as expected, deletion of sspAB reduces heat tolerance
+# two-sided: P = 0.01363
+# one-sided: P = 0.006816
+```
+
+# Does infection with phage ameliorate effects of sspAB deletion?
+
+```{r}
+cfu.2 <- filter(d, assay == "CFU", host == "dsspAB") %>%
+  dplyr::select(host, phage, assay, group, slope)  
+
+# convert to wide
+cfu.2 <- cfu.2 %>% 
+  spread(phage, slope)
+
+# calculate difference and test
+cfu.2 <- mutate(cfu.2, dif.1 = cfu.2$noPhage-cfu.2$Goe2, 
+                dif.2 = cfu.2$noPhage - cfu.2$SPO1)
+
+cfu.2.Goe2.test <- t.test(cfu.2$dif.1, mu = 0, alternative = "less")
+# one-sided: P = 0.1314
+
+cfu.2.SPO1.test <- t.test(cfu.2$dif.2, mu = 0, alternative = "less")
+# one-sided: P = 0.06147
+
+cfu.2.phage.test <- t.test(c(cfu.2$dif.1, cfu.2$dif.2), mu = 0, 
+                           alternative = "less")
+# one-sided: P = 0.01357
+```
