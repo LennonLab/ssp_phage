@@ -18,161 +18,177 @@ setwd("~/GitHub/ssp_phage/data")
 library("dplyr")
 library("tidyr")
 library("broom") #to extract stat results as table
-d<- read.csv("~/GitHub/ssp_phage/data/HeatDecaySlopes.csv", header = TRUE)
+d <- read.csv("~/GitHub/ssp_phage/data/HeatDecaySlopes.csv", header = TRUE)
 ```
 
 # Does deletion of sspAB diminish slope?
 
+Bacillus culture was split into three phage treatments: (SPO1, Goe2, noPhage).
+The "group" column refers to spores that were assayed on same day. 
+The "colony" column reflects pairing to be accounted for in analysis. 
+
 ```{r}
+# subset slopes by colony origin
 cfu.1 <- filter(d, assay == "CFU" & phage == "noPhage") %>%
   dplyr::select(host, assay, group, slope)
 
-# convert to wide
-cfu.1 <- cfu.1 %>% 
-  # spread(host, slope)
-  tidyr::pivot_wider(names_from=host, values_from=slope)
-
-# calculate difference and test
-cfu.1 <- mutate(cfu.1, dif = cfu.1$wt-cfu.1$dsspAB)
-cfu.1.test <- t.test(cfu.1$dif, mu = 0, alternative = "greater")
-
-# Answer: yes, as expected, deletion of sspAB reduces heat tolerance
-# two-sided: P = 0.01363
-# one-sided: P = 0.006816
-```
-
-In the above anlaysis a pairing of samples from the same test group was made. However The groups are not truly paired across host types. Groups refer to spores that were assayed on the same day, colonies reflect true pairing, a single culture that was split into 3 phage treatmens (SPO1, Goe2, noPhage). So next I compare slopes of uninfected cultutres without pairing groups.  
-
-```{r}
-cfu.1b <- filter(d, assay == "CFU" & phage == "noPhage") %>%
-  dplyr::select(host, assay, group, slope)
-
-x.wt <-  cfu.1b%>%
-  filter(host=="wt")%>%
+# extract slopes from wildtype
+x.wt <-  cfu.1 %>%
+  filter(host == "wt") %>%
   pull(slope)
 
-y.mut <-  cfu.1b%>%
-  filter(host=="dsspAB")%>%
+# extract slopes from mutant
+y.mut <-  cfu.1 %>%
+  filter(host == "dsspAB") %>%
   pull(slope)
 
-cfu.1b.test <- t.test(x.wt,y.mut,alternative = "greater")
+# conduct one-sided, paired t-test
+cfu.1.test <- t.test(x.wt, y.mut, alternative = "greater")
 
-# Same answer: deletion of sspAB reduces heat tolerance
-# two-sided: P = 0.005858
-# one-sided: P = 0.002929
+# Answer: deletion of sspAB reduces heat tolerance
+# two-sided: P = 0.005858 (alternative = "two.sided")
+# one-sided: P = 0.002929 (alternative = "greater")
 ```
 
 
 # Does infection with phage ameliorate effects of sspAB deletion?
 
 ```{r}
+# subset slopes by host, phage, and group
 cfu.2 <- filter(d, assay == "CFU", host == "dsspAB") %>%
   dplyr::select(host, phage, assay, group, slope)  
 
 # convert to wide
 cfu.2 <- cfu.2 %>% 
   # spread(phage, slope)
-  tidyr::pivot_wider(names_from=phage, values_from=slope)
+  tidyr::pivot_wider(names_from = phage, values_from = slope)
 
-# calculate difference and test
+# calculate difference in slopes between no-phage and plus-phage treatments
 cfu.2 <- mutate(cfu.2, dif.1 = cfu.2$noPhage-cfu.2$Goe2, 
                 dif.2 = cfu.2$noPhage - cfu.2$SPO1)
 
-cfu.2.Goe2.test <- t.test(cfu.2$dif.1, mu = 0, alternative = "less")
-# one-sided: P = 0.1314
+# Tests
 
-cfu.2.SPO1.test <- t.test(cfu.2$dif.2, mu = 0, alternative = "less")
+# 1) Goe2: one-sided, paired t-test
+cfu.Goe2.test <- t.test(cfu.2$dif.1, mu = 0, alternative = "less")
+# one-sided: P = 0.1314 (alternative = "less" -> does phage ameliorate?)
+# answer = no
+
+# 2) SPO1: one-sided, paired t-test
+cfu.SPO1.test <- t.test(cfu.2$dif.2, mu = 0, alternative = "less")
 # one-sided: P = 0.06147
+# answer = maybe
 
-# we dont have an initail hypthesis on the direction of change for comparing the 2 phages.
-  # so using a two sided test,
-cfu.2.phage.test <- t.test(c(cfu.2$dif.1, cfu.2$dif.2), mu = 0, 
-                           alternative = "two.sided")
-# one-sided: P = 0.02714
+# 3) Phage (Goe2 and SPO1), paired t-test: does "phage" ameliorate
+cfu.both.test <- t.test(c(cfu.2$dif.1, cfu.2$dif.2), mu = 0, alternative = "less")
+# one-sided: P = 0.01357
+# answer = yes
 
-dplyr::bind_rows(
-  broom::glance(cfu.2.Goe2.test),
-  broom::glance(cfu.2.SPO1.test),
-  broom::glance(cfu.2.phage.test)
+# 4) Difference in Goe2 vs SPO1 slopes, paired
+cfu.GvsS.test <- t.test(c(cfu.2$Goe2, cfu.2$SPO1), mu = 0, alternative = "two.sided")
+# two-sided: P = 0.0006878
+# answer = yes (SPO1 ameliorates more than Goe2)
+
+cfu.table <- dplyr::bind_rows(
+  broom::glance(cfu.Goe2.test),
+  broom::glance(cfu.SPO1.test),
+  broom::glance(cfu.both.test),
+  broom::glance(cfu.GvsS.test)
 )
 ```
 
-**conclusion**: border-line significance for the hypothesis that infection with SPO1 resuces heat-resistance of colony-forming spores. There is a significant difference (though adjustment for multiple hypothesis still needed) in resistance between spores from cultures infected with the 2 phage types.
-
 #  Does infection with phage ameliorate effects of sspAB deletion in virospores?   
-In this comparison we are comparing slopes of viral spores to slopes of colony-forming spores in the WT. This is required since there are no ciral spores in non-infected cultures. 
+Compare slopes of viral spores to slopes of colony-forming spores in the WT. 
+There are no viral spores in non-infected cultures. 
 
 ```{r}
-
+# subset slopes by deletion host, phage treatment, and group
 pfu <- filter(d,  host == "dsspAB") %>%
   # select CFU for noPhage and PFU for infected cultures
-  filter((phage == "noPhage" &  assay == "CFU") | (assay == "PFU"))%>%
+  filter((phage == "noPhage" &  assay == "CFU") | (assay == "PFU")) %>%
   dplyr::select(host, phage,  group, slope)  
 
 # convert to wide
 pfu <- pfu %>% 
   # spread(phage, slope)
-  tidyr::pivot_wider(names_from=phage, values_from=slope)
+  tidyr::pivot_wider(names_from = phage, values_from = slope)
 
-# calculate difference and test
+# calculate differences in slopes between no-phage and plus-phage treatments
 pfu <- mutate(pfu, dif.1 = pfu$noPhage-pfu$Goe2, 
                 dif.2 = pfu$noPhage - pfu$SPO1)
 
+# Tests
+
+# 1) Goe2: one-sided, paired t-test
 pfu.Goe2.test <- t.test(pfu$dif.1, mu = 0, alternative = "less")
 # one-sided: P = 0.3231
+# answer: no
 
+# 2) SPO1: one-sided, paired t-test
 pfu.SPO1.test <- t.test(pfu$dif.2, mu = 0, alternative = "less")
 # one-sided: P = 0.4109
+# answer: no
 
-pfu.phage.test <- t.test(c(pfu$dif.1, pfu$dif.2), mu = 0, 
+# 3) Phage (Goe2 and SPO1)
+pfu.both.test <- t.test(c(pfu$dif.1, pfu$dif.2), mu = 0, 
+                           alternative = "less")
+# one-sided: P = 0.2765
+# answer: no
+
+# 4) Difference in Goe2 vs SPO1 
+pfu.GvsS.test <- t.test(c(pfu$Goe2, pfu$SPO1), mu = 0, 
                            alternative = "two.sided")
-# one-sided: P = 0.5530
+# two-sided: 0.002264
+# answer: yes ( Goe2 virospore slope more negative than SPO1 virospore slope)
 
-dplyr::bind_rows(
+pfu.table <-dplyr::bind_rows(
   broom::glance(pfu.Goe2.test),
   broom::glance(pfu.SPO1.test),
-  broom::glance(pfu.phage.test)
+  broom::glance(pfu.both.test),
+  broom::glance(pfu.GvsS.test)
 )
 ```
 
-**conclusion**:no support for the hypothesis of difference in slopes between viral spores and spores from non-infected cultures. 
 
 #  Do colony-forming spores and viral spores differ from each other when infecting the mutant host?  
-Our onesided hypothesis is that viral spores are more resistan, i.e have a greater slope value: slope.PFU-slopePFU > 0
+One-sided hypothesis: viral spores are more resistant. 
+That is, they have a greater slope value: slope.PFU-slopePFU > 0
 
 ```{r}
-
+# subset slopes by deletion host, assay type (CFU vs. PFU), and group
 cfu.pfu <- filter(d,  host == "dsspAB", phage != "noPhage") %>%
-    dplyr::select(host, phage,assay , group, slope)  
+    dplyr::select(host, phage, assay , group, slope)  
 
 # convert to wide
 cfu.pfu  <- cfu.pfu  %>% 
   # spread(phage, slope)
-  tidyr::pivot_wider(names_from=assay, values_from=slope)
+  tidyr::pivot_wider(names_from = assay, values_from = slope)
 
-# calculate difference and test
+# calculate differences in slopes between CFU and PFU
 cfu.pfu  <- mutate(cfu.pfu , dif = PFU-CFU)
 
 cfu.pfu.Goe2.test <-
-  cfu.pfu%>%
-  filter(phage=="Goe2")%>%
-  pull(dif)%>%
+  cfu.pfu %>%
+  filter(phage  =="Goe2") %>%
+  pull(dif) %>%
   t.test(., mu = 0, alternative = "greater")
 # one-sided: P = 0.3425
 
 cfu.pfu.SPO1.test <-
-  cfu.pfu%>%
-  filter(phage=="SPO1")%>%
-  pull(dif)%>%
+  cfu.pfu %>%
+  filter(phage == "SPO1") %>%
+  pull(dif) %>%
   t.test(., mu = 0, alternative = "greater")
 # one-sided: P = 0.9197
+# answer: no
 
 cfu.pfu.phage.test <-  
-  cfu.pfu%>%
-  t.test(dif~phage, mu = 0, alternative = "two.sided", data=.)
+  cfu.pfu %>%
+  t.test(dif~phage, mu = 0, alternative = "two.sided", data =.)
 # one-sided: P = 0.4173
+# answer: no
 
-dplyr::bind_rows(
+cfu.pfu.table <- dplyr::bind_rows(
   broom::glance(cfu.pfu.Goe2.test),
   broom::glance(cfu.pfu.SPO1.test),
   broom::glance(cfu.pfu.phage.test)
@@ -209,6 +225,3 @@ dplyr::bind_rows(
   broom::glance(cfu.3.phage.test)
 )
 ```
-
-
-**conclusion**: no suport for lower resistance between WT colony-forming spores when infected by phage, and no difference in spores between phages.
