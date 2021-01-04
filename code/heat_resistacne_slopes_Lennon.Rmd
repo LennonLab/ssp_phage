@@ -14,10 +14,11 @@ geometry: margin=2.54cm
 ```{r setup, message = FALSE, warning = FALSE}
 # Clear and set working directory 
 rm(list = ls())
-setwd("~/GitHub/ssp_phage/data")
+
 library("dplyr")
 library("tidyr")
 library("broom") #to extract stat results as table
+# setwd("~/GitHub/ssp_phage/data")
 # d <- read.csv("~/GitHub/ssp_phage/data/HeatDecaySlopes.csv", header = TRUE)
 library(here)
 d <- read.csv(here("data/HeatDecaySlopes.csv"), header = TRUE)
@@ -87,9 +88,9 @@ cfu.both.test <- t.test(c(cfu.2$dif.goe2, cfu.2$dif.spo1), mu = 0, alternative =
 # answer = yes
 
 # 4) Difference in Goe2 vs SPO1 slopes, paired
-cfu.GvsS.test <- t.test(c(cfu.2$Goe2, cfu.2$SPO1), mu = 0, alternative = "two.sided")
-# two-sided: P = 0.0006878
-# answer = yes (SPO1 ameliorates more than Goe2)
+cfu.GvsS.test <- t.test(x=cfu.2$Goe2, y=cfu.2$SPO1, mu = 0, alternative = "two.sided")
+# two-sided: P = 0.6836
+# answer = no
 
 cfu.table <- dplyr::bind_rows(
   broom::glance(cfu.Goe2.test),
@@ -138,10 +139,9 @@ pfu.both.test <- t.test(c(pfu$dif.goe2, pfu$dif.spo1), mu = 0,
 # answer: no
 
 # 4) Difference in Goe2 vs SPO1 
-pfu.GvsS.test <- t.test(c(pfu$Goe2, pfu$SPO1), mu = 0, 
-                           alternative = "two.sided")
-# two-sided: 0.002264
-# answer: yes ( Goe2 virospore slope more negative than SPO1 virospore slope)
+pfu.GvsS.test <- t.test(x=pfu$Goe2, y=pfu$SPO1, mu = 0, alternative = "two.sided")
+# two-sided: 0.8138
+# answer: no
 
 pfu.table <-dplyr::bind_rows(
   broom::glance(pfu.Goe2.test),
@@ -198,6 +198,9 @@ cfu.pfu.table <- dplyr::bind_rows(
 ```
 
 # Does infection with phage compromise resistance of WT spores?
+
+If spores from infected cultures are more resistant, than slope(noPhage)-slope(phage)>0.  
+
 ```{r}
 cfu.3 <- filter(d, assay == "CFU", host == "wt") %>%
   dplyr::select(host, phage, assay, colony, slope)  
@@ -217,13 +220,18 @@ cfu.3.Goe2.test <- t.test(cfu.3$dif.goe2, mu = 0, alternative = "greater")
 cfu.3.SPO1.test <- t.test(cfu.3$dif.spo1, mu = 0, alternative = "greater")
 # one-sided: P = 0.2998
 
-cfu.3.phage.test <- t.test(c(cfu.3$dif.goe2, cfu.3$dif.spo1), mu = 0, 
+cfu.3.both.test <- t.test(c(cfu.3$dif.goe2, cfu.3$dif.spo1), mu = 0, 
+                           alternative = "greater")
+# one-sided: P = 0.06574
+
+cfu.3.GvsS.test <- t.test(x=cfu.3$dif.goe2, y= cfu.3$dif.spo1, mu = 0, 
                            alternative = "two.sided")
-# one-sided: P = 0.1315
+# one-sided: P = 0.2114
 
 cfu.wt.table <- dplyr::bind_rows(
   broom::glance(cfu.3.Goe2.test),
   broom::glance(cfu.3.SPO1.test),
-  broom::glance(cfu.3.phage.test)
+  broom::glance(cfu.3.both.test),
+  broom::glance(cfu.3.GvsS.test)
 )
 ```
