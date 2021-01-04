@@ -14,7 +14,7 @@ geometry: margin=2.54cm
 ```{r setup, message = FALSE, warning = FALSE}
 # Clear and set working directory 
 rm(list = ls())
-setwd("~/GitHub/ssp_phage/data")
+# setwd("~/GitHub/ssp_phage/data")
 library("dplyr")
 library("tidyr")
 library("readr")
